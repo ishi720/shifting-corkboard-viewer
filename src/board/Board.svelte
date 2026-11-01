@@ -146,13 +146,6 @@
       <span class="div"></span>
       <button onclick={toggleFs} aria-label="全画面">⛶</button>
     </div>
-
-    <!-- ループ中：次の切り替えまでの残り時間 -->
-    {#if viewer.playing}
-      {#key `${viewer.set}-${viewer.interval}`}
-        <div class="progress" style:animation-duration="{viewer.interval}ms" aria-hidden="true"></div>
-      {/key}
-    {/if}
   {/if}
 </main>
 
@@ -372,23 +365,5 @@
   .hud .loop[aria-pressed="true"] {
     background: #F4EAD9;
     color: #2A1A0C;
-  }
-
-  /* ---------- 進行バー ---------- */
-
-  .progress {
-    position: fixed;
-    left: 0;
-    bottom: 0;
-    width: 100%;
-    height: 3px;
-    transform-origin: left;
-    background: rgba(255, 244, 220, .55);
-    animation: progress linear forwards;
-  }
-
-  @keyframes progress {
-    from { transform: scaleX(0); }
-    to   { transform: scaleX(1); }
   }
 </style>
