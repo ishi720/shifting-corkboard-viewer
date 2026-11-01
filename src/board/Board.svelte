@@ -6,6 +6,7 @@
   let H = $state(800);
   let hudVisible = $state(true);
   let hudTimer;
+  let fullscreen = $state(false);
 
   const PAD = 8; // カードの白縁(px)
 
@@ -106,8 +107,10 @@
 <!-- 右クリックメニュー・画像のドラッグは出さない -->
 <svelte:window bind:innerWidth={W} bind:innerHeight={H} onkeydown={onKey} onmousemove={wake}
   oncontextmenu={(e) => e.preventDefault()} ondragstart={(e) => e.preventDefault()} />
+<svelte:document onfullscreenchange={() => (fullscreen = !!document.fullscreenElement)} />
 
-<main class="cork" ondblclick={toggleFs}>
+<!-- 全画面時は操作パネルと一緒にカーソルも隠す -->
+<main class="cork" class:idle={fullscreen && !hudVisible} ondblclick={toggleFs}>
   {#if viewer.ready && !cards.length}
     <div class="memo">
       <p><b>まだ何も貼られていません</b></p>
@@ -134,7 +137,8 @@
     </div>
   {/if}
 
-  {#if viewer.ready && cards.length}
+  <!-- 操作パネル。全画面では出さない（キー操作のみ） -->
+  {#if viewer.ready && cards.length && !fullscreen}
     <div class="hud" class:show={hudVisible} role="toolbar" aria-label="ボードの操作"
       ondblclick={(e) => e.stopPropagation()}>
       <button onclick={() => viewer.step(-1)} aria-label="前のセット">◀</button>
@@ -181,6 +185,11 @@
       inset 0 0 0 var(--frame-w) #6B4527,
       inset 0 0 0 calc(var(--frame-w) + 2px) #4E301A,
       inset 0 0 60px rgba(40, 20, 5, .45);
+  }
+
+  .cork.idle,
+  .cork.idle * {
+    cursor: none;
   }
 
   /* 折り返し、最終段は中央寄せ */
