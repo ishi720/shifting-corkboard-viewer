@@ -240,6 +240,18 @@ class Viewer {
     s.pos = 0;
   }
 
+  /** 全枠を1枚目に戻し、固定も解除する */
+  rewind() {
+    this.g = 0;
+    for (const s of this.slots) {
+      s.offset = 0;
+      s.fixed = 0;
+      s.locked = false;
+      if (this.shuffle) this.#reshuffle(s, 0);
+    }
+    this.commit();
+  }
+
   setShuffle(on) {
     // 切り替えても各枠の表示中の画像は変えない
     const shown = this.slots.map((s) => this.cur(s));

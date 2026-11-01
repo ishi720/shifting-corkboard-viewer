@@ -38,6 +38,7 @@
     if (e.target.closest('input,select,textarea')) return;
     if (e.key === 'ArrowRight') { e.preventDefault(); viewer.step(1); }
     else if (e.key === 'ArrowLeft') { e.preventDefault(); viewer.step(-1); }
+    else if (e.key === 'Home') { e.preventDefault(); viewer.rewind(); }
     else if (e.key === ' ') { e.preventDefault(); viewer.setPlay(!viewer.playing); }
     else if (e.key === 'r' || e.key === 'R') viewer.setShuffle(!viewer.shuffle);
     else if (e.key === 'f' || e.key === 'F') toggleFs();
@@ -66,6 +67,7 @@
 
   <div class="bar" role="toolbar" aria-label="操作">
     <div class="group">
+      <button onclick={() => viewer.rewind()} title="全部の枠を1枚目に戻す（Home）">⏮ 最初へ</button>
       <button class="nav" onclick={() => viewer.step(-1)}>◀ 前へ</button>
       <div class="counter" aria-live="polite"><small>セット</small>{viewer.shuffle ? 'ランダム' : `${viewer.set + 1} / ${viewer.maxLen}`}</div>
       <button class="nav primary" onclick={() => viewer.step(1)}>次へ ▶</button>
@@ -114,7 +116,7 @@
       {:else if viewer.total}{viewer.total}枚を読み込み済み
       {:else}まだ画像がありません{/if}
     </span>
-    <span><kbd>←</kbd><kbd>→</kbd> 切り替え　<kbd>Space</kbd> ループ　<kbd>R</kbd> ランダム　<kbd>F</kbd> 全画面　<kbd>+</kbd> 枠を追加</span>
+    <span><kbd>←</kbd><kbd>→</kbd> 切り替え　<kbd>Home</kbd> 最初へ　<kbd>Space</kbd> ループ　<kbd>R</kbd> ランダム　<kbd>F</kbd> 全画面　<kbd>+</kbd> 枠を追加</span>
   </p>
 
   <div class="stage" role="list" bind:this={stage} style:--cols={cols} style:--rows={rows}>
