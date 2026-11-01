@@ -1,3 +1,8 @@
+<script module>
+  // 並べ替え中の枠ID（dragover 中は dataTransfer を読めないため）
+  let movingId = null;
+</script>
+
 <script>
   import { viewer } from '../lib/viewer.svelte.js';
 
@@ -5,13 +10,53 @@
 
   let input;
   let dragging = $state(false);
+  let lifting = $state(false);
+  let over = $state(false);
 
   const len = $derived(slot.imgs.length);
   const k = $derived(viewer.cur(slot));
   const src = $derived(len ? viewer.url(slot.imgs[k]) : null);
   const n = $derived(index + 1);
 
+  const hasFiles = (e) => e.dataTransfer.types.includes('Files');
+
+  // ---- 枠の並べ替え ----
+  function onMoveStart(e) {
+    movingId = slot.id;
+    lifting = true;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', ''); // Firefox はデータが無いとドラッグしない
+  }
+  function onMoveEnd() {
+    movingId = null;
+    lifting = false;
+  }
+  function onMoveOver(e) {
+    if (!movingId || hasFiles(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    over = movingId !== slot.id;
+  }
+  function onMoveLeave(e) {
+    if (!e.currentTarget.contains(e.relatedTarget)) over = false;
+  }
+  function onMoveDrop(e) {
+    if (!movingId || hasFiles(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    over = false;
+    viewer.moveSlot(movingId, index);
+  }
+
+  // ---- 画像ファイルのドロップ ----
+  function onFileOver(e) {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragging = true;
+  }
   function onDrop(e) {
+    if (!hasFiles(e)) return;
     e.preventDefault();
     e.stopPropagation();
     dragging = false;
@@ -23,9 +68,20 @@
   }
 </script>
 
-<div class="slot">
-  <div class="slot-head">
-    <b>枠 {n}</b>
+<div
+  class="slot"
+  class:lifting
+  class:over
+  role="listitem"
+  draggable="true"
+  ondragstart={onMoveStart}
+  ondragend={onMoveEnd}
+  ondragover={onMoveOver}
+  ondragleave={onMoveLeave}
+  ondrop={onMoveDrop}
+>
+  <div class="slot-head" title="ドラッグで並べ替え">
+    <b>⠿ 枠 {n}</b>
     <span class="n">{len ? `${k + 1} / ${len}` : '空'}</span>
   </div>
 
@@ -34,14 +90,14 @@
     class:drag={dragging}
     role="group"
     aria-label="枠 {n}"
-    ondragover={(e) => { e.preventDefault(); e.stopPropagation(); dragging = true; }}
+    ondragover={onFileOver}
     ondragleave={() => (dragging = false)}
     ondrop={onDrop}
   >
     {#if len}
       {#if src}
         {#key src}
-          <img {src} alt="枠{n}の画像 {k + 1}枚目" class="in" />
+          <img {src} alt="枠{n}の画像 {k + 1}枚目" class="in" draggable="false" />
         {/key}
       {/if}
       {#if slot.locked}<span class="lockbadge">固定中</span>{/if}
@@ -88,6 +144,17 @@
   .slot-head b {
     color: var(--ink);
     font-weight: 700;
+    cursor: grab;
+  }
+
+  /* ---------- 並べ替え ---------- */
+
+  .slot.lifting {
+    opacity: .4;
+  }
+
+  .slot.over .frame {
+    outline: 2px solid var(--accent);
   }
 
   .n {

@@ -276,6 +276,15 @@ class Viewer {
     this.commit();
   }
 
+  /** 枠 id を to 番目へ移動 */
+  moveSlot(id, to) {
+    const from = this.slots.findIndex((s) => s.id === id);
+    if (from < 0 || from === to) return;
+    const [s] = this.slots.splice(from, 1);
+    this.slots.splice(to, 0, s);
+    this.commit();
+  }
+
   stepSlot(slot, d) {
     const s = this.#find(slot);
     if (!s?.imgs.length) return;

@@ -114,11 +114,10 @@
       {:else if viewer.total}{viewer.total}枚を読み込み済み
       {:else}まだ画像がありません{/if}
     </span>
-    <span>まとめて追加すると、選んだ順に今ある枠へ1枚ずつ配られます（枠が{viewer.slots.length}つなら{viewer.slots.length + 1}枚目から次のセット）。</span>
     <span><kbd>←</kbd><kbd>→</kbd> 切り替え　<kbd>Space</kbd> ループ　<kbd>R</kbd> ランダム　<kbd>F</kbd> 全画面　<kbd>+</kbd> 枠を追加</span>
   </p>
 
-  <div class="stage" bind:this={stage} style:--cols={cols} style:--rows={rows}>
+  <div class="stage" role="list" bind:this={stage} style:--cols={cols} style:--rows={rows}>
     {#each viewer.slots as slot, i (slot.id)}
       <Slot {slot} index={i} />
     {/each}
