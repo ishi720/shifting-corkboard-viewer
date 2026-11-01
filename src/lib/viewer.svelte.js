@@ -46,7 +46,6 @@ class Viewer {
   playOwner = $state(null);
 
   ready = $state(false);
-  hasData = $state(false);
   storageOk = $state(true);
 
   /** 画像ID → 表示用URL */
@@ -128,7 +127,6 @@ class Viewer {
   /** 保存して他画面へ通知 */
   commit() {
     const state = this.#snapshot();
-    this.hasData = state.slots.length > 0;
     // 保存は直列で行う
     this.#saving = this.#saving
       .then(() => db.putState(state))
@@ -151,7 +149,6 @@ class Viewer {
     this.playing = !!state.playing;
     this.interval = state.interval ?? 3000;
     this.playOwner = state.playOwner ?? null;
-    this.hasData = state.slots.length > 0;
 
     for (const [id, url] of this.urls) {
       if (!ids.has(id)) { URL.revokeObjectURL(url); this.urls.delete(id); }

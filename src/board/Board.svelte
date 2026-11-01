@@ -14,9 +14,12 @@
     return a && b ? a / b : 5 / 8;
   });
 
+  // 画像のある枠だけ貼る
+  const cards = $derived(viewer.slots.filter((s) => s.imgs.length));
+
   // カードが最大になる列数と幅
   const layout = $derived.by(() => {
-    const n = Math.max(1, viewer.slots.length);
+    const n = Math.max(1, cards.length);
     // ずらす余地のため余白・間隔は広め
     const margin = Math.max(28, Math.min(W, H) * 0.075);
     const gap = Math.max(22, Math.min(W, H) * 0.06);
@@ -103,7 +106,7 @@
 <svelte:window bind:innerWidth={W} bind:innerHeight={H} onkeydown={onKey} onmousemove={wake} />
 
 <main class="cork" ondblclick={toggleFs}>
-  {#if viewer.ready && !viewer.hasData}
+  {#if viewer.ready && !cards.length}
     <div class="memo">
       <p><b>まだ何も貼られていません</b></p>
       <p>管理画面で画像を追加すると、ここに表示されます。</p>
@@ -111,9 +114,9 @@
     </div>
   {:else if viewer.ready}
     <div class="board" style:width="{layout.cols * layout.w + (layout.cols - 1) * layout.gap}px" style:--w="{layout.w}px" style:gap="{layout.gap}px">
-      {#each viewer.slots as slot (slot.id)}
+      {#each cards as slot (slot.id)}
         {@const lk = look(slot.id)}
-        {@const src = slot.imgs.length ? viewer.url(slot.imgs[viewer.cur(slot)]) : null}
+        {@const src = viewer.url(slot.imgs[viewer.cur(slot)])}
         <figure class="card" style:--rot="{lk.rot}deg" style:--dx="{lk.dx * layout.gap}px" style:--dy="{lk.dy * layout.gap}px"
           style:--s={lk.scale} style:z-index={lk.z} style:--pin={lk.pin} style:--pin-x="{lk.pinX}%"
           style:--tape={lk.tapeColor} style:--tape-rot="{lk.tapeRot}deg"
@@ -129,7 +132,7 @@
     </div>
   {/if}
 
-  {#if viewer.ready && viewer.hasData}
+  {#if viewer.ready && cards.length}
     <div class="hud" class:show={hudVisible} role="toolbar" aria-label="ボードの操作"
       ondblclick={(e) => e.stopPropagation()}>
       <button onclick={() => viewer.step(-1)} aria-label="前のセット">◀</button>
