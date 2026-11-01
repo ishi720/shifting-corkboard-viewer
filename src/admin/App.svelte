@@ -75,9 +75,6 @@
     viewer.addNew(e.dataTransfer.files);
   }
 
-  // 枠外へのドロップは全枠に配る
-  function onWindowDrop(e) { e.preventDefault(); viewer.bulk(e.dataTransfer.files); }
-
   onMount(() => viewer.init({ seed: true }));
 </script>
 
@@ -85,7 +82,7 @@
   bind:innerWidth={width}
   onkeydown={onKey}
   ondragover={(e) => e.preventDefault()}
-  ondrop={onWindowDrop}
+  ondrop={(e) => e.preventDefault()}
 />
 <svelte:document onfullscreenchange={() => (fullscreen = !!document.fullscreenElement)} />
 
@@ -114,8 +111,6 @@
     </div>
     <div class="sep"></div>
     <div class="group">
-      <span class="filebtn">画像・動画をまとめて追加<input type="file" accept="image/*,video/*" multiple aria-label="画像・動画をまとめて追加"
-          onchange={(e) => { viewer.bulk(e.currentTarget.files); e.currentTarget.value = ''; }} /></span>
       <label class="sel">枠の形
         <select value={viewer.ratio} onchange={(e) => viewer.setRatio(e.currentTarget.value)}>
           <option value="5/8">縦長カード 5:8</option><option value="3/4">縦 3:4</option>

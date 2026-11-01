@@ -434,17 +434,6 @@ class Viewer {
     this.commit();
   }
 
-  /** 全枠へ順に配る（1,2,3,1,2,3…）。枠が無ければ1つ作る */
-  async bulk(list) {
-    const fs = images(list);
-    if (!fs.length) return;
-    const ids = await this.#store(fs);
-    if (!this.slots.length) this.slots.push(newSlot());
-    const n = this.slots.length;
-    this.slots.forEach((s, j) => this.#push(s, ids.filter((_, k) => k % n === j)));
-    this.commit();
-  }
-
   /** 画像も枠もすべて消す */
   clearAll() {
     for (const s of this.slots) this.#forget(s.imgs);
