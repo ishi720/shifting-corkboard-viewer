@@ -102,7 +102,6 @@
           {/key}
         {/if}
       </button>
-      {#if slot.locked}<span class="lockbadge">固定中</span>{/if}
     {:else}
       <button class="empty" onclick={() => input.click()}>
         <strong>{n}</strong>クリックかドロップで<br />画像を追加
@@ -116,8 +115,6 @@
     <span class="filebtn" title="この枠に画像を追加">＋<input
         bind:this={input} type="file" accept="image/*" multiple
         aria-label="枠{n}に画像を追加" onchange={onPick} /></span>
-    <button onclick={() => viewer.toggleLock(slot)} aria-pressed={slot.locked}
-      title="固定すると全体の切り替えで動きません">固定</button>
     <button onclick={() => viewer.emptySlot(slot)} disabled={!len} aria-label="枠{n}の画像を空にする"
       title="画像を空にする">空</button>
     <button class="danger" onclick={() => viewer.removeSlot(slot)} disabled={viewer.slots.length <= 1}
@@ -238,17 +235,6 @@
     color: var(--line);
   }
 
-  .lockbadge {
-    position: absolute;
-    top: 6px;
-    left: 6px;
-    background: var(--ink);
-    color: var(--surface);
-    font-size: 11px;
-    padding: 2px 7px;
-    border-radius: 99px;
-  }
-
   /* ---------- 操作ボタン ---------- */
 
   .slot-ctl {
@@ -271,8 +257,7 @@
 
   /* 操作類を隠す */
   :global(.stage:fullscreen) .slot-head,
-  :global(.stage:fullscreen) .slot-ctl,
-  :global(.stage:fullscreen) .lockbadge {
+  :global(.stage:fullscreen) .slot-ctl {
     display: none;
   }
 

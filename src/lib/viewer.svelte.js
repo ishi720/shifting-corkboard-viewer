@@ -11,7 +11,7 @@ const CHANNEL = 'shifting-corkboard-viewer';
 
 const mod = (a, n) => ((a % n) + n) % n;
 const uid = () => crypto.randomUUID();
-const newSlot = () => ({ id: uid(), imgs: [], offset: 0, locked: false, fixed: 0, order: [], pos: 0 });
+const newSlot = () => ({ id: uid(), imgs: [], offset: 0, order: [], pos: 0 });
 
 /** 0..n-1 をシャッフル。first を先頭に置く */
 function shuffled(n, first) {
@@ -31,7 +31,7 @@ const images = (list) =>
     .sort((a, b) => a.name.localeCompare(b.name, 'ja', { numeric: true }));
 
 class Viewer {
-  /** 枠: { id, imgs: 画像ID[], offset, locked, fixed, order, pos }
+  /** 枠: { id, imgs: 画像ID[], offset, order, pos }
    *  order/pos はランダム時の枠ごとの並びと位置 */
   slots = $state([]);
   g = $state(0);
@@ -206,7 +206,6 @@ class Viewer {
   cur(s) {
     const len = s.imgs.length;
     if (!len) return 0;
-    if (s.locked) return mod(s.fixed, len);
     if (this.shuffle && s.order?.length === len) return s.order[mod(s.pos, len)];
     return mod(this.set + s.offset, len);
   }
@@ -217,7 +216,7 @@ class Viewer {
 
   step(d) {
     this.g = mod(this.set + d, this.maxLen);
-    if (this.shuffle) for (const s of this.slots) if (!s.locked) this.#advance(s, d);
+    if (this.shuffle) for (const s of this.slots) this.#advance(s, d);
     this.commit();
   }
 
@@ -237,13 +236,11 @@ class Viewer {
     s.pos = 0;
   }
 
-  /** 全枠を1枚目に戻し、固定も解除する */
+  /** 全枠を1枚目に戻す */
   rewind() {
     this.g = 0;
     for (const s of this.slots) {
       s.offset = 0;
-      s.fixed = 0;
-      s.locked = false;
       if (this.shuffle) this.#reshuffle(s, 0);
     }
     this.commit();
@@ -297,20 +294,8 @@ class Viewer {
   stepSlot(slot, d) {
     const s = this.#find(slot);
     if (!s?.imgs.length) return;
-    if (s.locked) s.fixed = mod(s.fixed + d, s.imgs.length);
-    else if (this.shuffle) this.#advance(s, d);
+    if (this.shuffle) this.#advance(s, d);
     else s.offset += d;
-    this.commit();
-  }
-
-  toggleLock(slot) {
-    const s = this.#find(slot);
-    if (!s) return;
-    if (s.locked) {
-      s.offset = s.fixed - this.set;
-      if (this.shuffle) this.#reshuffle(s, mod(s.fixed, s.imgs.length));
-      s.locked = false;
-    } else { s.fixed = this.cur(s); s.locked = true; }
     this.commit();
   }
 
@@ -318,14 +303,13 @@ class Viewer {
     const s = this.#find(slot);
     if (!s) return;
     this.#forget(s.imgs);
-    s.imgs = []; s.offset = 0; s.fixed = 0; s.order = []; s.pos = 0;
+    s.imgs = []; s.offset = 0; s.order = []; s.pos = 0;
     this.commit();
   }
 
   /** 枠 s の表示を i 枚目にする */
   #show(s, i) {
-    if (s.locked) s.fixed = i;
-    else if (this.shuffle) this.#reshuffle(s, i);
+    if (this.shuffle) this.#reshuffle(s, i);
     else s.offset = i - this.set;
   }
 
@@ -355,7 +339,7 @@ class Viewer {
     const shown = s.imgs[k];
     const [id] = s.imgs.splice(i, 1);
     this.#forget([id]);
-    if (!s.imgs.length) { s.offset = 0; s.fixed = 0; s.order = []; s.pos = 0; }
+    if (!s.imgs.length) { s.offset = 0; s.order = []; s.pos = 0; }
     else this.#show(s, id === shown ? Math.min(k, s.imgs.length - 1) : s.imgs.indexOf(shown));
     this.commit();
   }
