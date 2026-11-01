@@ -16,6 +16,7 @@
   const len = $derived(slot.imgs.length);
   const k = $derived(viewer.cur(slot));
   const src = $derived(len ? viewer.url(slot.imgs[k]) : null);
+  const video = $derived(len && viewer.isVideo(slot.imgs[k]));
   const n = $derived(index + 1);
 
   const hasFiles = (e) => e.dataTransfer.types.includes('Files');
@@ -98,13 +99,17 @@
       <button class="open" onclick={onedit} aria-label="枠{n}の画像を編集" title="クリックで並べ替え・追加">
         {#if src}
           {#key src}
-            <img {src} alt="枠{n}の画像 {k + 1}枚目" class="in" draggable="false" />
+            {#if video}
+              <video {src} class="in" autoplay muted loop playsinline aria-label="枠{n}の動画 {k + 1}枚目"></video>
+            {:else}
+              <img {src} alt="枠{n}の画像 {k + 1}枚目" class="in" draggable="false" />
+            {/if}
           {/key}
         {/if}
       </button>
     {:else}
       <button class="empty" onclick={() => input.click()}>
-        <strong>{n}</strong>クリックかドロップで<br />画像を追加
+        <strong>{n}</strong>クリックかドロップで<br />画像・動画を追加
       </button>
     {/if}
   </div>
@@ -112,9 +117,9 @@
   <div class="slot-ctl">
     <button onclick={() => viewer.stepSlot(slot, -1)} disabled={!len} aria-label="枠{n}を前へ">◀</button>
     <button onclick={() => viewer.stepSlot(slot, 1)} disabled={!len} aria-label="枠{n}を次へ">▶</button>
-    <span class="filebtn" title="この枠に画像を追加">＋<input
-        bind:this={input} type="file" accept="image/*" multiple
-        aria-label="枠{n}に画像を追加" onchange={onPick} /></span>
+    <span class="filebtn" title="この枠に画像・動画を追加">＋<input
+        bind:this={input} type="file" accept="image/*,video/*" multiple
+        aria-label="枠{n}に画像・動画を追加" onchange={onPick} /></span>
     <button onclick={() => viewer.emptySlot(slot)} disabled={!len} aria-label="枠{n}の画像を空にする"
       title="画像を空にする">空</button>
     <button class="danger" onclick={() => viewer.removeSlot(slot)}
@@ -187,7 +192,8 @@
     background: none;
   }
 
-  img {
+  img,
+  video {
     position: absolute;
     inset: 0;
     width: 100%;
@@ -196,7 +202,7 @@
     display: block;
   }
 
-  img.in {
+  .in {
     animation: fade .28s ease;
   }
 
@@ -206,7 +212,7 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    img.in {
+    .in {
       animation: none;
     }
   }

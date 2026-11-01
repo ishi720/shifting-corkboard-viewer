@@ -79,7 +79,7 @@
       <button onclick={() => dialog.close()} aria-label="閉じる">×</button>
     </header>
 
-    <p class="hint">ドラッグで並べ替え、クリックでその画像を表示します。画像ファイルをここへドロップすると末尾に追加されます。</p>
+    <p class="hint">ドラッグで並べ替え、クリックでその画像を表示します。画像・動画ファイルをここへドロップすると末尾に追加されます。</p>
 
     {#if slot.imgs.length}
       <ol class="thumbs">
@@ -98,7 +98,11 @@
           >
             <button class="pick" onclick={() => viewer.showImage(slot, i)}
               aria-label="{i + 1}枚目を表示" aria-current={i === k}>
-              <img src={viewer.url(id)} alt="" draggable="false" />
+              {#if viewer.isVideo(id)}
+                <video src={viewer.url(id)} muted preload="metadata"></video>
+              {:else}
+                <img src={viewer.url(id)} alt="" draggable="false" />
+              {/if}
             </button>
             <span class="num">{i + 1}</span>
             <button class="del" onclick={() => viewer.removeImage(slot, i)}
@@ -111,8 +115,8 @@
     {/if}
 
     <footer>
-      <span class="filebtn primary">＋ 画像を追加<input type="file" accept="image/*" multiple
-          aria-label="枠{index + 1}に画像を追加" onchange={onPick} /></span>
+      <span class="filebtn primary">＋ 画像・動画を追加<input type="file" accept="image/*,video/*" multiple
+          aria-label="枠{index + 1}に画像・動画を追加" onchange={onPick} /></span>
       <button onclick={() => dialog.close()}>閉じる</button>
     </footer>
   {/if}
@@ -222,7 +226,8 @@
     cursor: inherit;
   }
 
-  .pick img {
+  .pick img,
+  .pick video {
     width: 100%;
     height: 100%;
     object-fit: var(--fit);

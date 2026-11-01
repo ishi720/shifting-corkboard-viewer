@@ -1,9 +1,9 @@
 // 状態とロジック。管理画面・コルクボード共通
-//   - 画像は IndexedDB に保存し、表示用URLは各画面で作る
+//   - 画像・動画は IndexedDB に保存し、表示用URLは各画面で作る
 //   - 状態の変更は保存して BroadcastChannel で他タブへ通知
 //   - 受信側は状態を置き換え、未読の画像を読み込む
 
-import { SvelteMap } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import * as db from './db.js';
 
 export const MAX_SLOTS = 24;
@@ -24,10 +24,10 @@ function shuffled(n, first) {
   return [first, ...a];
 }
 
-/** 画像ファイルのみ、ファイル名の自然順 */
+/** 画像・動画ファイルのみ、ファイル名の自然順 */
 const images = (list) =>
   [...list]
-    .filter((f) => f.type.startsWith('image/'))
+    .filter((f) => /^(image|video)\//.test(f.type))
     .sort((a, b) => a.name.localeCompare(b.name, 'ja', { numeric: true }));
 
 class Viewer {
@@ -50,6 +50,10 @@ class Viewer {
 
   /** 画像ID → 表示用URL */
   urls = new SvelteMap();
+  /** 動画の画像ID */
+  videos = new SvelteSet();
+  /** 動画の画像ID → 長さ(秒)。再生中はこの長さで枠を進める */
+  durations = new SvelteMap();
 
   maxLen = $derived(Math.max(1, ...this.slots.map((s) => s.imgs.length)));
   set = $derived(mod(this.g, this.maxLen));
@@ -60,14 +64,33 @@ class Viewer {
   #applySeq = 0;
   #id = uid();
   #heardOwner = false;
+  /** 再生中、枠ごとの次に進める時刻。枠ID → { id: 表示中の画像ID, at, interval } */
+  #due = new Map();
 
   constructor() {
     // 再生のタイマー（担当画面のみ）
+    // 枠ごとに、画像は間隔、動画はその長さだけ表示してから進める
     $effect.root(() => {
       $effect(() => {
-        if (!this.playing || this.playOwner !== this.#id) return;
-        const t = setInterval(() => this.step(1), this.interval);
-        return () => clearInterval(t);
+        if (!this.playing || this.playOwner !== this.#id) { this.#due.clear(); return; }
+        const now = performance.now();
+        const interval = this.interval;
+        const live = new Set();
+        for (const s of this.slots) {
+          if (!s.imgs.length) continue;
+          live.add(s.id);
+          const id = s.imgs[this.cur(s)];
+          const d = this.#due.get(s.id);
+          if (d?.id === id && d.interval === interval) continue;
+          const sec = this.durations.get(id);
+          this.#due.set(s.id, { id, interval, at: now + (sec ? sec * 1000 : interval) });
+        }
+        for (const sid of this.#due.keys()) if (!live.has(sid)) this.#due.delete(sid);
+
+        const next = Math.min(...[...this.#due.values()].map((d) => d.at));
+        if (!Number.isFinite(next)) return;
+        const t = setTimeout(() => this.#tick(), Math.max(0, next - now));
+        return () => clearTimeout(t);
       });
     });
 
@@ -148,7 +171,7 @@ class Viewer {
     this.playOwner = state.playOwner ?? null;
 
     for (const [id, url] of this.urls) {
-      if (!ids.has(id)) { URL.revokeObjectURL(url); this.urls.delete(id); }
+      if (!ids.has(id)) { URL.revokeObjectURL(url); this.#untrack(id); }
     }
   }
 
@@ -158,7 +181,7 @@ class Viewer {
       if (this.urls.has(id)) continue;
       try {
         const blob = await db.getImage(id);
-        if (blob) this.urls.set(id, URL.createObjectURL(blob));
+        if (blob) this.#track(id, blob);
       } catch { this.storageOk = false; }
     }
   }
@@ -176,7 +199,7 @@ class Viewer {
   async #store(blobs) {
     const entries = blobs.map((b) => [uid(), b]);
     try { await db.putImages(entries); } catch { this.storageOk = false; }
-    for (const [id, b] of entries) this.urls.set(id, URL.createObjectURL(b));
+    for (const [id, b] of entries) this.#track(id, b);
     return entries.map(([id]) => id);
   }
 
@@ -186,9 +209,38 @@ class Viewer {
     for (const id of ids) {
       const u = this.urls.get(id);
       if (u) URL.revokeObjectURL(u);
-      this.urls.delete(id);
+      this.#untrack(id);
     }
     db.deleteImages(ids).catch(() => {});
+  }
+
+  /** 表示用URLを作る。動画なら長さも調べる */
+  #track(id, blob) {
+    const url = URL.createObjectURL(blob);
+    this.urls.set(id, url);
+    if (!blob.type.startsWith('video/')) return;
+    this.videos.add(id);
+
+    const v = document.createElement('video');
+    v.preload = 'metadata';
+    v.muted = true;
+    const done = () => {
+      if (Number.isFinite(v.duration) && v.duration > 0 && this.urls.has(id)) this.durations.set(id, v.duration);
+      v.onloadedmetadata = v.ondurationchange = null;
+      v.removeAttribute('src');
+      v.load();
+    };
+    // 録画した webm などは長さが Infinity になるので、末尾へシークして確定させる
+    v.onloadedmetadata = () => { if (v.duration === Infinity) v.currentTime = 1e101; else done(); };
+    v.ondurationchange = () => { if (Number.isFinite(v.duration)) done(); };
+    v.onerror = done;
+    v.src = url;
+  }
+
+  #untrack(id) {
+    this.urls.delete(id);
+    this.videos.delete(id);
+    this.durations.delete(id);
   }
 
   #find(slot) { return this.slots.find((s) => s.id === slot.id); }
@@ -198,6 +250,7 @@ class Viewer {
   // ---------------------------------------------------------------
 
   url(id) { return this.urls.get(id); }
+  isVideo(id) { return this.videos.has(id); }
 
   /** 枠 s の表示中の画像番号 */
   cur(s) {
@@ -214,6 +267,19 @@ class Viewer {
   step(d) {
     this.g = mod(this.set + d, this.maxLen);
     if (this.shuffle) for (const s of this.slots) this.#advance(s, d);
+    this.commit();
+  }
+
+  /** 再生タイマー。時刻が来た枠を進める。全枠そろっていれば通常の step */
+  #tick() {
+    const soon = performance.now() + 30;
+    const due = this.slots.filter((s) => (this.#due.get(s.id)?.at ?? Infinity) <= soon);
+    for (const s of due) this.#due.delete(s.id);
+    if (!this.#due.size) { this.step(1); return; } // 全枠そろって進める
+    for (const s of due) {
+      if (this.shuffle) this.#advance(s, 1);
+      else s.offset += 1;
+    }
     this.commit();
   }
 

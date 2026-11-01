@@ -1,6 +1,7 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { viewer, INTERVALS } from '../lib/viewer.svelte.js';
+  import Media from './Media.svelte';
 
   let W = $state(1200);
   let H = $state(800);
@@ -97,6 +98,11 @@
     document.documentElement.style.setProperty('--fit', viewer.fit);
   });
 
+  // 再生を始めたら動画を頭から（動画の長さで枠を進めるタイミングと合わせる）
+  $effect(() => {
+    if (viewer.playing) untrack(() => document.querySelectorAll('.photo video').forEach((v) => { v.currentTime = 0; }));
+  });
+
   onMount(() => {
     viewer.init();
     wake();
@@ -114,7 +120,7 @@
   {#if viewer.ready && !cards.length}
     <div class="memo">
       <p><b>まだ何も貼られていません</b></p>
-      <p>管理画面で画像を追加すると、ここに表示されます。</p>
+      <p>管理画面で画像・動画を追加すると、ここに表示されます。</p>
       <a href={import.meta.env.BASE_URL}>管理画面を開く</a>
     </div>
   {:else if viewer.ready}
@@ -129,7 +135,7 @@
           {#if lk.tape}<span class="tape" aria-hidden="true"></span>{:else}<span class="pin" aria-hidden="true"></span>{/if}
           <div class="photo">
             {#if src}
-              {#key src}<img {src} alt="" />{/key}
+              <Media {src} video={viewer.isVideo(slot.imgs[viewer.cur(slot)])} />
             {/if}
           </div>
         </figure>
@@ -142,7 +148,6 @@
     <div class="hud" class:show={hudVisible} role="toolbar" aria-label="ボードの操作"
       ondblclick={(e) => e.stopPropagation()}>
       <button onclick={() => viewer.step(-1)} aria-label="前のセット">◀</button>
-      <span class="count">{viewer.shuffle ? 'シャッフル' : `${viewer.set + 1} / ${viewer.maxLen}`}</span>
       <button onclick={() => viewer.step(1)} aria-label="次のセット">▶</button>
       <span class="div"></span>
       <button class="loop" aria-pressed={viewer.playing} onclick={() => viewer.setPlay(!viewer.playing)}
@@ -229,28 +234,9 @@
     background: #E8E3D8;
   }
 
-  .photo img {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: var(--fit);
-    display: block;
-    animation: fade .35s ease;
-  }
-
-  @keyframes fade {
-    from { opacity: 0; }
-    to   { opacity: 1; }
-  }
-
   @media (prefers-reduced-motion: reduce) {
     .card {
       transition: none;
-    }
-
-    .photo img {
-      animation: none;
     }
   }
 
@@ -339,11 +325,6 @@
   .hud:hover,
   .hud:focus-within {
     opacity: 1;
-  }
-
-  .hud .count {
-    min-width: 56px;
-    text-align: center;
   }
 
   .hud .div {
