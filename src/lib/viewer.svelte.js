@@ -32,9 +32,9 @@ const images = (list) =>
 
 class Viewer {
   /** 枠: { id, imgs: 画像ID[], offset, order, pos }
+   *  offset は表示中の画像番号（枚数で割った余りを使う）
    *  order/pos はシャッフル時の枠ごとの並びと位置 */
   slots = $state([]);
-  g = $state(0);
   shuffle = $state(false);
   ratio = $state('5/8');
   fit = $state('cover');
@@ -55,8 +55,6 @@ class Viewer {
   /** 動画の画像ID → 長さ(秒)。再生中はこの長さで枠を進める */
   durations = new SvelteMap();
 
-  maxLen = $derived(Math.max(1, ...this.slots.map((s) => s.imgs.length)));
-  set = $derived(mod(this.g, this.maxLen));
   total = $derived(this.slots.reduce((a, s) => a + s.imgs.length, 0));
 
   #channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(CHANNEL) : null;
@@ -139,7 +137,7 @@ class Viewer {
 
   #snapshot() {
     return $state.snapshot({
-      slots: this.slots, g: this.set, shuffle: this.shuffle, ratio: this.ratio, fit: this.fit,
+      slots: this.slots, shuffle: this.shuffle, ratio: this.ratio, fit: this.fit,
       playing: this.playing, interval: this.interval, playOwner: this.playOwner,
     });
   }
@@ -161,8 +159,9 @@ class Viewer {
     await this.#load(ids);
     if (seq !== this.#applySeq) return; // 新しい状態が来ていれば破棄
 
-    this.slots = state.slots;
-    this.g = state.g;
+    // 旧形式（全体の位置 g + 枠ごとの差 offset）は、表示を保って枠ごとの位置へ
+    const g = state.g ?? 0;
+    this.slots = g ? state.slots.map((s) => ({ ...s, offset: s.offset + g })) : state.slots;
     this.shuffle = !!state.shuffle;
     this.ratio = state.ratio ?? '5/8';
     this.fit = state.fit ?? 'cover';
@@ -257,30 +256,34 @@ class Viewer {
     const len = s.imgs.length;
     if (!len) return 0;
     if (this.shuffle && s.order?.length === len) return s.order[mod(s.pos, len)];
-    return mod(this.set + s.offset, len);
+    return mod(s.offset, len);
   }
 
   // ---------------------------------------------------------------
   // 操作（最後に commit）
   // ---------------------------------------------------------------
 
+  /** 全枠をそれぞれ d 進める */
   step(d) {
-    this.g = mod(this.set + d, this.maxLen);
-    if (this.shuffle) for (const s of this.slots) this.#advance(s, d);
+    for (const s of this.slots) this.#move(s, d);
     this.commit();
   }
 
-  /** 再生タイマー。時刻が来た枠を進める。全枠そろっていれば通常の step */
+  /** 再生タイマー。時刻が来た枠を進める */
   #tick() {
     const soon = performance.now() + 30;
     const due = this.slots.filter((s) => (this.#due.get(s.id)?.at ?? Infinity) <= soon);
-    for (const s of due) this.#due.delete(s.id);
-    if (!this.#due.size) { this.step(1); return; } // 全枠そろって進める
     for (const s of due) {
-      if (this.shuffle) this.#advance(s, 1);
-      else s.offset += 1;
+      this.#due.delete(s.id);
+      this.#move(s, 1);
     }
     this.commit();
+  }
+
+  /** 枠 s を d 進める */
+  #move(s, d) {
+    if (this.shuffle) this.#advance(s, d);
+    else s.offset += d;
   }
 
   /** シャッフル時、枠 s を自分の並びで d 進める。一巡したら並べ直す */
@@ -301,7 +304,6 @@ class Viewer {
 
   /** 全枠を1枚目に戻す */
   rewind() {
-    this.g = 0;
     for (const s of this.slots) {
       s.offset = 0;
       if (this.shuffle) this.#reshuffle(s, 0);
@@ -315,7 +317,7 @@ class Viewer {
     this.shuffle = !!on;
     this.slots.forEach((s, k) => {
       if (on) this.#reshuffle(s, shown[k]);
-      else s.offset = shown[k] - this.set;
+      else s.offset = shown[k];
     });
     this.commit();
   }
@@ -351,8 +353,7 @@ class Viewer {
   stepSlot(slot, d) {
     const s = this.#find(slot);
     if (!s?.imgs.length) return;
-    if (this.shuffle) this.#advance(s, d);
-    else s.offset += d;
+    this.#move(s, d);
     this.commit();
   }
 
@@ -367,7 +368,7 @@ class Viewer {
   /** 枠 s の表示を i 枚目にする */
   #show(s, i) {
     if (this.shuffle) this.#reshuffle(s, i);
-    else s.offset = i - this.set;
+    else s.offset = i;
   }
 
   showImage(slot, i) {
@@ -448,7 +449,6 @@ class Viewer {
   clearAll() {
     for (const s of this.slots) this.#forget(s.imgs);
     this.slots = [];
-    this.g = 0;
     this.playing = false;
     this.playOwner = null;
     this.commit();

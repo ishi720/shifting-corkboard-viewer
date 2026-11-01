@@ -147,8 +147,8 @@
   {#if viewer.ready && cards.length && !fullscreen}
     <div class="hud" class:show={hudVisible} role="toolbar" aria-label="ボードの操作"
       ondblclick={(e) => e.stopPropagation()}>
-      <button onclick={() => viewer.step(-1)} aria-label="前のセット">◀</button>
-      <button onclick={() => viewer.step(1)} aria-label="次のセット">▶</button>
+      <button onclick={() => viewer.step(-1)} aria-label="前へ">◀</button>
+      <button onclick={() => viewer.step(1)} aria-label="次へ">▶</button>
       <span class="div"></span>
       <button class="loop" aria-pressed={viewer.playing} onclick={() => viewer.setPlay(!viewer.playing)}
         title="再生（Space）">{viewer.playing ? '❚❚ 再生中' : '▷ 再生'}</button>
