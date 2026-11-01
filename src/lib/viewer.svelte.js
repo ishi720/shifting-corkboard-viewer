@@ -351,11 +351,10 @@ class Viewer {
     this.commit();
   }
 
+  /** 画像をすべて消し、空の枠1つに戻す */
   clearAll() {
-    for (const s of this.slots) {
-      this.#forget(s.imgs);
-      s.imgs = []; s.offset = 0; s.fixed = 0; s.locked = false; s.order = []; s.pos = 0;
-    }
+    for (const s of this.slots) this.#forget(s.imgs);
+    this.slots = [newSlot()];
     this.g = 0;
     this.playing = false;
     this.playOwner = null;
