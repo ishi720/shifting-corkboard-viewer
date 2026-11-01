@@ -8,13 +8,18 @@
   let stage;
   let fsError = $state(false);
   let editingId = $state(null); // 中身を編集中の枠ID
+  let fullscreen = $state(false);
 
   const boardUrl = `${import.meta.env.BASE_URL}board.html`;
 
+  // 末尾の「枠を追加」タイル。全画面と上限到達時は出さない
+  const showAdd = $derived(!fullscreen && viewer.slots.length < MAX_SLOTS);
+
   // 1行の最大枠数（画面幅で決定）
   const perRow = $derived(width <= 540 ? 2 : width <= 980 ? 4 : 7);
-  const cols = $derived(Math.max(1, Math.min(viewer.slots.length, perRow)));
-  const rows = $derived(Math.ceil(viewer.slots.length / cols));
+  const tiles = $derived(viewer.slots.length + (showAdd ? 1 : 0));
+  const cols = $derived(Math.max(1, Math.min(tiles, perRow)));
+  const rows = $derived(Math.ceil(tiles / cols));
 
   // 枠の形・表示方法 → CSS変数
   $effect(() => {
@@ -59,6 +64,7 @@
   ondragover={(e) => e.preventDefault()}
   ondrop={onWindowDrop}
 />
+<svelte:document onfullscreenchange={() => (fullscreen = !!document.fullscreenElement)} />
 
 <div class="wrap">
   <header>
@@ -73,11 +79,6 @@
       <button class="nav" onclick={() => viewer.step(-1)}>◀ 前へ</button>
       <div class="counter" aria-live="polite"><small>セット</small>{viewer.shuffle ? 'シャッフル' : `${viewer.set + 1} / ${viewer.maxLen}`}</div>
       <button class="nav primary" onclick={() => viewer.step(1)}>次へ ▶</button>
-    </div>
-    <div class="sep"></div>
-    <div class="group">
-      <button class="addslot" onclick={() => viewer.addSlot()} disabled={viewer.slots.length >= MAX_SLOTS}>＋ 枠を追加</button>
-      <span class="slotcount">枠 <b>{viewer.slots.length}</b></span>
     </div>
     <div class="sep"></div>
     <div class="group">
@@ -125,6 +126,13 @@
     {#each viewer.slots as slot, i (slot.id)}
       <Slot {slot} index={i} onedit={() => (editingId = slot.id)} />
     {/each}
+    {#if showAdd}
+      <!-- 見出しの高さぶん空けて、枠と上端をそろえる -->
+      <div class="addcol">
+        <span class="addcol-head" aria-hidden="true">&nbsp;</span>
+        <button class="addtile" onclick={() => viewer.addSlot()} title="枠を追加（+）">＋<br />枠を追加</button>
+      </div>
+    {/if}
   </div>
 </div>
 
@@ -208,23 +216,31 @@
     letter-spacing: .06em;
   }
 
-  .addslot {
+  /* 末尾の「枠を追加」タイル。Slot と同じ縦並び */
+  .addcol {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .addcol-head {
+    font-size: 12px;
+  }
+
+  .addtile {
+    aspect-ratio: var(--ratio);
+    width: 100%;
+    border: 2px dashed var(--line);
+    border-radius: 8px;
+    color: var(--muted);
     font-weight: 700;
-    border-style: dashed;
+    line-height: 1.6;
+  }
+
+  .addtile:hover {
     border-color: var(--accent);
     color: var(--accent);
-  }
-
-  .slotcount {
-    color: var(--muted);
-    font-size: 12px;
-    min-width: 44px;
-  }
-
-  .slotcount b {
-    font-family: var(--f-num);
-    color: var(--ink);
-    font-size: 14px;
   }
 
   .sel {
