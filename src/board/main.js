@@ -1,0 +1,5 @@
+import { mount } from 'svelte';
+import '../app.css';
+import Board from './Board.svelte';
+
+export default mount(Board, { target: document.getElementById('app') });
