@@ -1,11 +1,13 @@
 <script>
   import { onMount } from 'svelte';
   import Slot from './Slot.svelte';
+  import SlotEditor from './SlotEditor.svelte';
   import { viewer, MAX_SLOTS, INTERVALS } from '../lib/viewer.svelte.js';
 
   let width = $state(1200);
   let stage;
   let fsError = $state(false);
+  let editingId = $state(null); // 中身を編集中の枠ID
 
   const boardUrl = `${import.meta.env.BASE_URL}board.html`;
 
@@ -35,7 +37,7 @@
   function clearAll() { viewer.clearAll(); }
 
   function onKey(e) {
-    if (e.target.closest('input,select,textarea')) return;
+    if (e.target.closest('input,select,textarea,dialog')) return;
     if (e.key === 'ArrowRight') { e.preventDefault(); viewer.step(1); }
     else if (e.key === 'ArrowLeft') { e.preventDefault(); viewer.step(-1); }
     else if (e.key === 'Home') { e.preventDefault(); viewer.rewind(); }
@@ -121,10 +123,12 @@
 
   <div class="stage" role="list" bind:this={stage} style:--cols={cols} style:--rows={rows}>
     {#each viewer.slots as slot, i (slot.id)}
-      <Slot {slot} index={i} />
+      <Slot {slot} index={i} onedit={() => (editingId = slot.id)} />
     {/each}
   </div>
 </div>
+
+<SlotEditor slotId={editingId} onclose={() => (editingId = null)} />
 
 <style>
   /* ---------- レイアウト・見出し ---------- */

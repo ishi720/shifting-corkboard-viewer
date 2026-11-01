@@ -322,6 +322,44 @@ class Viewer {
     this.commit();
   }
 
+  /** 枠 s の表示を i 枚目にする */
+  #show(s, i) {
+    if (s.locked) s.fixed = i;
+    else if (this.shuffle) this.#reshuffle(s, i);
+    else s.offset = i - this.set;
+  }
+
+  showImage(slot, i) {
+    const s = this.#find(slot);
+    if (!s) return;
+    this.#show(s, i);
+    this.commit();
+  }
+
+  /** 枠内の画像を from 番目から to 番目へ。表示中の画像は変えない */
+  moveImage(slot, from, to) {
+    const s = this.#find(slot);
+    if (!s || from === to) return;
+    const shown = s.imgs[this.cur(s)];
+    const [id] = s.imgs.splice(from, 1);
+    s.imgs.splice(to, 0, id);
+    this.#show(s, s.imgs.indexOf(shown));
+    this.commit();
+  }
+
+  /** 枠内の i 番目の画像を削除。表示中なら同じ位置の次の画像を出す */
+  removeImage(slot, i) {
+    const s = this.#find(slot);
+    if (!s) return;
+    const k = this.cur(s);
+    const shown = s.imgs[k];
+    const [id] = s.imgs.splice(i, 1);
+    this.#forget([id]);
+    if (!s.imgs.length) { s.offset = 0; s.fixed = 0; s.order = []; s.pos = 0; }
+    else this.#show(s, id === shown ? Math.min(k, s.imgs.length - 1) : s.imgs.indexOf(shown));
+    this.commit();
+  }
+
   /** 枠 s に画像を足す。ランダム時は表示中の画像を保って並べ直す */
   #push(s, ids) {
     if (!ids.length) return;

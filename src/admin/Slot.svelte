@@ -6,7 +6,7 @@
 <script>
   import { viewer } from '../lib/viewer.svelte.js';
 
-  let { slot, index } = $props();
+  let { slot, index, onedit } = $props();
 
   let input;
   let dragging = $state(false);
@@ -95,11 +95,13 @@
     ondrop={onDrop}
   >
     {#if len}
-      {#if src}
-        {#key src}
-          <img {src} alt="枠{n}の画像 {k + 1}枚目" class="in" draggable="false" />
-        {/key}
-      {/if}
+      <button class="open" onclick={onedit} aria-label="枠{n}の画像を編集" title="クリックで並べ替え・追加">
+        {#if src}
+          {#key src}
+            <img {src} alt="枠{n}の画像 {k + 1}枚目" class="in" draggable="false" />
+          {/key}
+        {/if}
+      </button>
       {#if slot.locked}<span class="lockbadge">固定中</span>{/if}
     {:else}
       <button class="empty" onclick={() => input.click()}>
@@ -177,6 +179,15 @@
 
   .frame.drag {
     outline-color: var(--accent);
+  }
+
+  .open {
+    position: absolute;
+    inset: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
   }
 
   img {
