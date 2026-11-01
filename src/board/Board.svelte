@@ -142,13 +142,13 @@
     <div class="hud" class:show={hudVisible} role="toolbar" aria-label="ボードの操作"
       ondblclick={(e) => e.stopPropagation()}>
       <button onclick={() => viewer.step(-1)} aria-label="前のセット">◀</button>
-      <span class="count">{viewer.shuffle ? 'ランダム' : `${viewer.set + 1} / ${viewer.maxLen}`}</span>
+      <span class="count">{viewer.shuffle ? 'シャッフル' : `${viewer.set + 1} / ${viewer.maxLen}`}</span>
       <button onclick={() => viewer.step(1)} aria-label="次のセット">▶</button>
       <span class="div"></span>
       <button class="loop" aria-pressed={viewer.playing} onclick={() => viewer.setPlay(!viewer.playing)}
-        title="ループ（Space）">{viewer.playing ? '❚❚ ループ中' : '↻ ループ'}</button>
+        title="再生（Space）">{viewer.playing ? '❚❚ 再生中' : '▷ 再生'}</button>
       <button class="loop" aria-pressed={viewer.shuffle} onclick={() => viewer.setShuffle(!viewer.shuffle)}
-        title="ランダム（R）">⤮ ランダム</button>
+        title="シャッフル（R）">⤮ シャッフル</button>
       <select value={viewer.interval} onchange={(e) => viewer.setSpeed(+e.currentTarget.value)} aria-label="切り替えの間隔">
         {#each INTERVALS as ms}<option value={ms}>{ms / 1000}秒</option>{/each}
       </select>

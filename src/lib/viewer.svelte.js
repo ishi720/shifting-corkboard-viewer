@@ -32,14 +32,14 @@ const images = (list) =>
 
 class Viewer {
   /** 枠: { id, imgs: 画像ID[], offset, order, pos }
-   *  order/pos はランダム時の枠ごとの並びと位置 */
+   *  order/pos はシャッフル時の枠ごとの並びと位置 */
   slots = $state([]);
   g = $state(0);
   shuffle = $state(false);
   ratio = $state('5/8');
   fit = $state('cover');
 
-  /** ループ再生 */
+  /** 再生 */
   playing = $state(false);
   interval = $state(3000);
   /** タイマー担当の画面ID（二重進行の防止） */
@@ -62,7 +62,7 @@ class Viewer {
   #heardOwner = false;
 
   constructor() {
-    // ループのタイマー（担当画面のみ）
+    // 再生のタイマー（担当画面のみ）
     $effect.root(() => {
       $effect(() => {
         if (!this.playing || this.playOwner !== this.#id) return;
@@ -71,7 +71,7 @@ class Viewer {
       });
     });
 
-    // 担当画面が閉じたらループ停止
+    // 担当画面が閉じたら再生停止
     window.addEventListener('pagehide', () => {
       if (!this.playing || this.playOwner !== this.#id) return;
       this.playing = false;
@@ -220,7 +220,7 @@ class Viewer {
     this.commit();
   }
 
-  /** ランダム時、枠 s を自分の並びで d 進める。一巡したら並べ直す */
+  /** シャッフル時、枠 s を自分の並びで d 進める。一巡したら並べ直す */
   #advance(s, d) {
     const len = s.imgs.length;
     if (len <= 1) return;
@@ -257,7 +257,7 @@ class Viewer {
     this.commit();
   }
 
-  /** ループ開始・停止。操作した画面が担当 */
+  /** 再生開始・停止。操作した画面が担当 */
   setPlay(on) {
     this.playing = !!on;
     this.playOwner = on ? this.#id : null;
@@ -344,7 +344,7 @@ class Viewer {
     this.commit();
   }
 
-  /** 枠 s に画像を足す。ランダム時は表示中の画像を保って並べ直す */
+  /** 枠 s に画像を足す。シャッフル時は表示中の画像を保って並べ直す */
   #push(s, ids) {
     if (!ids.length) return;
     const shown = this.cur(s);
@@ -384,7 +384,7 @@ class Viewer {
   }
 }
 
-/** ループ間隔(ms) */
+/** 再生間隔(ms) */
 export const INTERVALS = [1000, 2000, 3000, 5000, 10000, 15000, 30000];
 
 export const viewer = new Viewer();
