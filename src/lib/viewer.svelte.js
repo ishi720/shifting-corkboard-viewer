@@ -265,12 +265,6 @@ class Viewer {
   setRatio(v) { this.ratio = v; this.commit(); }
   setFit(v) { this.fit = v; this.commit(); }
 
-  addSlot() {
-    if (this.slots.length >= MAX_SLOTS) return;
-    this.slots.push(newSlot());
-    this.commit();
-  }
-
   removeSlot(slot) {
     const s = this.#find(slot);
     if (!s) return;
@@ -357,6 +351,19 @@ class Viewer {
     const s = this.#find(slot);
     if (!s) { this.#forget(ids); return; }
     this.#push(s, ids);
+    this.commit();
+  }
+
+  /** 新しい枠を末尾に作り、画像を入れる */
+  async addNew(list) {
+    const fs = images(list);
+    if (!fs.length || this.slots.length >= MAX_SLOTS) return;
+    const ids = await this.#store(fs);
+    if (this.slots.length >= MAX_SLOTS) { this.#forget(ids); return; }
+    const s = newSlot();
+    s.imgs = ids;
+    if (this.shuffle) this.#reshuffle(s, 0);
+    this.slots.push(s);
     this.commit();
   }
 

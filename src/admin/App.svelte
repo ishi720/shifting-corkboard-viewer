@@ -9,10 +9,12 @@
   let fsError = $state(false);
   let editingId = $state(null); // 中身を編集中の枠ID
   let fullscreen = $state(false);
+  let newInput = $state();
+  let newDrag = $state(false);
 
   const boardUrl = `${import.meta.env.BASE_URL}board.html`;
 
-  // 末尾の「枠を追加」タイル。全画面・上限到達時・空の枠があるときは出さない
+  // 末尾の新しい枠の受け口。全画面・上限到達時・空の枠があるときは出さない
   const showAdd = $derived(
     !fullscreen && viewer.slots.length < MAX_SLOTS && viewer.slots.every((s) => s.imgs.length),
   );
@@ -51,7 +53,21 @@
     else if (e.key === ' ') { e.preventDefault(); viewer.setPlay(!viewer.playing); }
     else if (e.key === 'r' || e.key === 'R') viewer.setShuffle(!viewer.shuffle);
     else if (e.key === 'f' || e.key === 'F') toggleFs();
-    else if (e.key === '+') viewer.addSlot();
+  }
+
+  // 新しい枠への画像ドロップ
+  function onNewOver(e) {
+    if (!e.dataTransfer.types.includes('Files')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    newDrag = true;
+  }
+  function onNewDrop(e) {
+    if (!e.dataTransfer.types.includes('Files')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    newDrag = false;
+    viewer.addNew(e.dataTransfer.files);
   }
 
   // 枠外へのドロップは全枠に配る
@@ -120,7 +136,7 @@
       {:else if viewer.total}{viewer.total}枚を読み込み済み
       {:else}まだ画像がありません{/if}
     </span>
-    <span><kbd>←</kbd><kbd>→</kbd> 切り替え　<kbd>Home</kbd> 最初へ　<kbd>Space</kbd> 再生　<kbd>R</kbd> シャッフル　<kbd>F</kbd> 全画面　<kbd>+</kbd> 枠を追加</span>
+    <span><kbd>←</kbd><kbd>→</kbd> 切り替え　<kbd>Home</kbd> 最初へ　<kbd>Space</kbd> 再生　<kbd>R</kbd> シャッフル　<kbd>F</kbd> 全画面</span>
   </p>
 
   <div class="stage" role="list" bind:this={stage} style:--cols={cols} style:--rows={rows}>
@@ -131,7 +147,13 @@
       <!-- 見出しの高さぶん空けて、枠と上端をそろえる -->
       <div class="addcol">
         <span class="addcol-head" aria-hidden="true">&nbsp;</span>
-        <button class="addtile" onclick={() => viewer.addSlot()} title="枠を追加（+）">＋<br />枠を追加</button>
+        <button class="addtile" class:drag={newDrag} onclick={() => newInput.click()}
+          ondragover={onNewOver} ondragleave={() => (newDrag = false)} ondrop={onNewDrop}>
+          <span class="addtile-plus" aria-hidden="true">＋</span>
+          クリックかドロップで<br />新しい枠に画像を追加
+        </button>
+        <input bind:this={newInput} type="file" accept="image/*" multiple hidden
+          onchange={(e) => { viewer.addNew(e.currentTarget.files); e.currentTarget.value = ''; }} />
       </div>
     {/if}
   </div>
@@ -201,7 +223,7 @@
     min-width: 84px;
   }
 
-  /* 末尾の「枠を追加」タイル。Slot と同じ縦並び */
+  /* 末尾の新しい枠の受け口。Slot の空の枠と同じ見た目 */
   .addcol {
     display: flex;
     flex-direction: column;
@@ -216,14 +238,29 @@
   .addtile {
     aspect-ratio: var(--ratio);
     width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px;
     border: 2px dashed var(--line);
     border-radius: 8px;
+    background: transparent;
     color: var(--muted);
+    font-size: 13px;
     font-weight: 700;
     line-height: 1.6;
+    text-align: center;
   }
 
-  .addtile:hover {
+  .addtile-plus {
+    font-size: 26px;
+    line-height: 1;
+  }
+
+  .addtile:hover,
+  .addtile.drag {
     border-color: var(--accent);
     color: var(--accent);
   }
