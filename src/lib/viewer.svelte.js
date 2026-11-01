@@ -86,7 +86,7 @@ class Viewer {
   // 起動・保存・同期
   // ---------------------------------------------------------------
 
-  /** seed: 保存データが無ければ空の枠を1つ作る */
+  /** seed: 管理画面から呼ぶとき true。未使用の画像を掃除する */
   async init({ seed = false } = {}) {
     this.#channel?.addEventListener('message', (e) => {
       const m = e.data;
@@ -110,9 +110,6 @@ class Viewer {
         this.#channel?.postMessage({ type: 'who-plays' });
         setTimeout(() => { if (this.playing && !this.#heardOwner) this.setPlay(false); }, 700);
       }
-    } else if (seed) {
-      this.slots = [newSlot()];
-      this.commit();
     }
     this.ready = true;
   }
@@ -276,7 +273,7 @@ class Viewer {
 
   removeSlot(slot) {
     const s = this.#find(slot);
-    if (!s || this.slots.length <= 1) return;
+    if (!s) return;
     this.#forget(s.imgs);
     this.slots = this.slots.filter((x) => x.id !== s.id);
     this.commit();
@@ -363,20 +360,21 @@ class Viewer {
     this.commit();
   }
 
-  /** 全枠へ順に配る（1,2,3,1,2,3…） */
+  /** 全枠へ順に配る（1,2,3,1,2,3…）。枠が無ければ1つ作る */
   async bulk(list) {
     const fs = images(list);
     if (!fs.length) return;
     const ids = await this.#store(fs);
+    if (!this.slots.length) this.slots.push(newSlot());
     const n = this.slots.length;
     this.slots.forEach((s, j) => this.#push(s, ids.filter((_, k) => k % n === j)));
     this.commit();
   }
 
-  /** 画像をすべて消し、空の枠1つに戻す */
+  /** 画像も枠もすべて消す */
   clearAll() {
     for (const s of this.slots) this.#forget(s.imgs);
-    this.slots = [newSlot()];
+    this.slots = [];
     this.g = 0;
     this.playing = false;
     this.playOwner = null;

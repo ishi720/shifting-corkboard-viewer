@@ -12,8 +12,10 @@
 
   const boardUrl = `${import.meta.env.BASE_URL}board.html`;
 
-  // 末尾の「枠を追加」タイル。全画面と上限到達時は出さない
-  const showAdd = $derived(!fullscreen && viewer.slots.length < MAX_SLOTS);
+  // 末尾の「枠を追加」タイル。全画面・上限到達時・空の枠があるときは出さない
+  const showAdd = $derived(
+    !fullscreen && viewer.slots.length < MAX_SLOTS && viewer.slots.every((s) => s.imgs.length),
+  );
 
   // 1行の最大枠数（画面幅で決定）
   const perRow = $derived(width <= 540 ? 2 : width <= 980 ? 4 : 7);
@@ -77,7 +79,6 @@
     <div class="group">
       <button onclick={() => viewer.rewind()} title="全部の枠を1枚目に戻す（Home）">⏮ 最初へ</button>
       <button class="nav" onclick={() => viewer.step(-1)}>◀ 前へ</button>
-      <div class="counter" aria-live="polite"><small>セット</small>{viewer.shuffle ? 'シャッフル' : `${viewer.set + 1} / ${viewer.maxLen}`}</div>
       <button class="nav primary" onclick={() => viewer.step(1)}>次へ ▶</button>
     </div>
     <div class="sep"></div>
@@ -198,22 +199,6 @@
 
   .nav {
     min-width: 84px;
-  }
-
-  .counter {
-    font-family: var(--f-num);
-    font-variant-numeric: tabular-nums;
-    font-size: 15px;
-    min-width: 92px;
-    text-align: center;
-  }
-
-  .counter small {
-    display: block;
-    font-family: var(--f-ui);
-    font-size: 11px;
-    color: var(--muted);
-    letter-spacing: .06em;
   }
 
   /* 末尾の「枠を追加」タイル。Slot と同じ縦並び */
