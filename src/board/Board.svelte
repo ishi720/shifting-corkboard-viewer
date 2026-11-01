@@ -7,6 +7,7 @@
   let H = $state(800);
   let hudVisible = $state(true);
   let hudTimer;
+  let menuOpen = $state(false); // 操作パネルを開いているか
   let fullscreen = $state(false);
 
   const PAD = 8; // カードの白縁(px)
@@ -91,6 +92,7 @@
     else if (e.key === 'f' || e.key === 'F') toggleFs();
     else if (e.key === 'r' || e.key === 'R') viewer.setShuffle(!viewer.shuffle);
     else if (e.key === ' ' || e.key === 'l' || e.key === 'L') { e.preventDefault(); viewer.setPlay(!viewer.playing); }
+    else if (e.key === 'Escape') menuOpen = false;
     wake();
   }
 
@@ -110,10 +112,11 @@
   });
 </script>
 
-<!-- 右クリックメニュー・画像のドラッグは出さない -->
+<!-- 右クリックメニュー・画像のドラッグは出さない。操作パネルの外をクリックしたら閉じる -->
 <svelte:window bind:innerWidth={W} bind:innerHeight={H} onkeydown={onKey} onmousemove={wake}
+  onclick={() => (menuOpen = false)}
   oncontextmenu={(e) => e.preventDefault()} ondragstart={(e) => e.preventDefault()} />
-<svelte:document onfullscreenchange={() => (fullscreen = !!document.fullscreenElement)} />
+<svelte:document onfullscreenchange={() => { fullscreen = !!document.fullscreenElement; menuOpen = false; }} />
 
 <!-- 全画面時は操作パネルと一緒にカーソルも隠す -->
 <main class="cork" class:idle={fullscreen && !hudVisible} ondblclick={toggleFs}>
@@ -143,22 +146,30 @@
     </div>
   {/if}
 
-  <!-- 操作パネル。全画面では出さない（キー操作のみ） -->
+  <!-- 操作パネル。ふだんは「⋯」だけで、押すと開く。全画面では出さない（キー操作のみ） -->
   {#if viewer.ready && cards.length && !fullscreen}
-    <div class="hud" class:show={hudVisible} role="toolbar" aria-label="ボードの操作"
-      ondblclick={(e) => e.stopPropagation()}>
-      <button onclick={() => viewer.step(-1)} aria-label="前へ">◀</button>
-      <button onclick={() => viewer.step(1)} aria-label="次へ">▶</button>
-      <span class="div"></span>
-      <button class="loop" aria-pressed={viewer.playing} onclick={() => viewer.setPlay(!viewer.playing)}
-        title="再生（Space）">{viewer.playing ? '❚❚ 再生中' : '▷ 再生'}</button>
-      <button class="loop" aria-pressed={viewer.shuffle} onclick={() => viewer.setShuffle(!viewer.shuffle)}
-        title="シャッフル（R）">⤮ シャッフル</button>
-      <select value={viewer.interval} onchange={(e) => viewer.setSpeed(+e.currentTarget.value)} aria-label="切り替えの間隔">
-        {#each INTERVALS as ms}<option value={ms}>{ms / 1000}秒</option>{/each}
-      </select>
-      <span class="div"></span>
-      <button onclick={toggleFs} aria-label="全画面">⛶</button>
+    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+    <div class="hud" class:show={hudVisible || menuOpen}
+      onclick={(e) => e.stopPropagation()} ondblclick={(e) => e.stopPropagation()}>
+      {#if menuOpen}
+        <div class="menu" id="hud-menu" role="toolbar" aria-label="ボードの操作">
+          <button onclick={() => viewer.step(-1)} aria-label="前へ">◀</button>
+          <button onclick={() => viewer.step(1)} aria-label="次へ">▶</button>
+          <span class="div"></span>
+          <button class="loop" aria-pressed={viewer.playing} onclick={() => viewer.setPlay(!viewer.playing)}
+            title="再生（Space）">{viewer.playing ? '❚❚ 再生中' : '▷ 再生'}</button>
+          <button class="loop" aria-pressed={viewer.shuffle} onclick={() => viewer.setShuffle(!viewer.shuffle)}
+            title="シャッフル（R）">⤮ シャッフル</button>
+          <select value={viewer.interval} onchange={(e) => viewer.setSpeed(+e.currentTarget.value)} aria-label="切り替えの間隔">
+            {#each INTERVALS as ms}<option value={ms}>{ms / 1000}秒</option>{/each}
+          </select>
+          <span class="div"></span>
+          <button onclick={toggleFs} aria-label="全画面">⛶</button>
+          <span class="div"></span>
+        </div>
+      {/if}
+      <button class="more" onclick={() => (menuOpen = !menuOpen)} aria-label="操作"
+        aria-expanded={menuOpen} aria-controls="hud-menu">⋯</button>
     </div>
   {/if}
 </main>
@@ -300,12 +311,12 @@
     font-weight: 700;
   }
 
-  /* ---------- 操作パネル（右下。マウス操作で表示） ---------- */
+  /* ---------- 操作パネル（右上。マウス操作で表示） ---------- */
 
   .hud {
     position: fixed;
+    top: max(20px, env(safe-area-inset-top, 0px));
     right: max(20px, env(safe-area-inset-right, 0px));
-    bottom: 20px;
     display: flex;
     align-items: center;
     gap: 4px;
@@ -325,6 +336,17 @@
   .hud:hover,
   .hud:focus-within {
     opacity: 1;
+  }
+
+  .menu {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .hud .more {
+    font-size: 18px;
+    line-height: 1;
   }
 
   .hud .div {
