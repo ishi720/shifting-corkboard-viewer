@@ -258,21 +258,4 @@
     justify-content: center;
     text-align: center;
   }
-
-  /* ---------- 全画面時 ---------- */
-
-  /* 操作類を隠す */
-  :global(.stage:fullscreen) .slot-head,
-  :global(.stage:fullscreen) .slot-ctl {
-    display: none;
-  }
-
-  :global(.stage:fullscreen) .frame {
-    background: #111;
-    border-radius: 4px;
-  }
-
-  :global(.stage:fullscreen) .empty {
-    border-color: #333;
-  }
 </style>

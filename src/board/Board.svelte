@@ -1,13 +1,12 @@
 <script>
   import { onMount, untrack } from 'svelte';
-  import { viewer, INTERVALS } from '../lib/viewer.svelte.js';
+  import { viewer } from '../lib/viewer.svelte.js';
   import Media from './Media.svelte';
 
   let W = $state(1200);
   let H = $state(800);
   let hudVisible = $state(true);
   let hudTimer;
-  let menuOpen = $state(false); // 操作パネルを開いているか
   let fullscreen = $state(false);
 
   const PAD = 8; // カードの白縁(px)
@@ -86,13 +85,13 @@
     } catch { /* 非対応環境は無視 */ }
   }
 
+  // 画面上のボタンは全画面だけ。切り替え・再生はキー操作で
   function onKey(e) {
     if (e.key === 'ArrowRight') { e.preventDefault(); viewer.step(1); }
     else if (e.key === 'ArrowLeft') { e.preventDefault(); viewer.step(-1); }
     else if (e.key === 'f' || e.key === 'F') toggleFs();
     else if (e.key === 'r' || e.key === 'R') viewer.setShuffle(!viewer.shuffle);
     else if (e.key === ' ' || e.key === 'l' || e.key === 'L') { e.preventDefault(); viewer.setPlay(!viewer.playing); }
-    else if (e.key === 'Escape') menuOpen = false;
     wake();
   }
 
@@ -112,11 +111,10 @@
   });
 </script>
 
-<!-- 右クリックメニュー・画像のドラッグは出さない。操作パネルの外をクリックしたら閉じる -->
+<!-- 右クリックメニュー・画像のドラッグは出さない -->
 <svelte:window bind:innerWidth={W} bind:innerHeight={H} onkeydown={onKey} onmousemove={wake}
-  onclick={() => (menuOpen = false)}
   oncontextmenu={(e) => e.preventDefault()} ondragstart={(e) => e.preventDefault()} />
-<svelte:document onfullscreenchange={() => { fullscreen = !!document.fullscreenElement; menuOpen = false; }} />
+<svelte:document onfullscreenchange={() => { fullscreen = !!document.fullscreenElement; }} />
 
 <!-- 全画面時は操作パネルと一緒にカーソルも隠す -->
 <main class="cork" class:idle={fullscreen && !hudVisible} ondblclick={toggleFs}>
@@ -150,31 +148,14 @@
     </div>
   {/if}
 
-  <!-- 操作パネル。ふだんは「⋯」だけで、押すと開く。全画面では出さない（キー操作のみ） -->
+  <!-- 全画面ボタン。マウスを動かすと出る。全画面中は出さない（F キー・ダブルクリックで戻る） -->
   {#if viewer.ready && cards.length && !fullscreen}
-    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-    <div class="hud" class:show={hudVisible || menuOpen}
-      onclick={(e) => e.stopPropagation()} ondblclick={(e) => e.stopPropagation()}>
-      {#if menuOpen}
-        <div class="menu" id="hud-menu" role="toolbar" aria-label="ボードの操作">
-          <button onclick={() => viewer.step(-1)} aria-label="前へ">◀</button>
-          <button onclick={() => viewer.step(1)} aria-label="次へ">▶</button>
-          <span class="div"></span>
-          <button class="loop" aria-pressed={viewer.playing} onclick={() => viewer.setPlay(!viewer.playing)}
-            title="再生（Space）">{viewer.playing ? '❚❚ 再生中' : '▷ 再生'}</button>
-          <button class="loop" aria-pressed={viewer.shuffle} onclick={() => viewer.setShuffle(!viewer.shuffle)}
-            title="シャッフル（R）">⤮ シャッフル</button>
-          <select value={viewer.interval} onchange={(e) => viewer.setSpeed(+e.currentTarget.value)} aria-label="切り替えの間隔">
-            {#each INTERVALS as ms}<option value={ms}>{ms / 1000}秒</option>{/each}
-          </select>
-          <span class="div"></span>
-          <button onclick={toggleFs} aria-label="全画面">⛶</button>
-          <span class="div"></span>
-        </div>
-      {/if}
-      <button class="more" onclick={() => (menuOpen = !menuOpen)} aria-label="操作"
-        aria-expanded={menuOpen} aria-controls="hud-menu">⋯</button>
-    </div>
+    <button class="hud" class:show={hudVisible} onclick={toggleFs} ondblclick={(e) => e.stopPropagation()}
+      aria-label="全画面" title="全画面（F）">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" />
+      </svg>
+    </button>
   {/if}
 </main>
 
@@ -364,78 +345,43 @@
     }
   }
 
-  /* ---------- 操作パネル（右上。マウス操作で表示） ---------- */
+  /* ---------- 全画面ボタン（右上。マウス操作で表示） ---------- */
 
   .hud {
     position: fixed;
     top: max(20px, env(safe-area-inset-top, 0px));
     right: max(20px, env(safe-area-inset-right, 0px));
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 6px;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 0;
     border-radius: 99px;
     background: rgba(30, 18, 8, .72);
     color: #F4EAD9;
-    font-family: var(--f-num);
-    font-size: 13px;
-    font-variant-numeric: tabular-nums;
     backdrop-filter: blur(4px);
     opacity: 0;
-    transition: opacity .4s;
+    transition: opacity .4s, background .2s;
   }
 
   .hud.show,
   .hud:hover,
-  .hud:focus-within {
+  .hud:focus-visible {
     opacity: 1;
   }
 
-  .menu {
-    display: flex;
-    align-items: center;
-    gap: 4px;
+  .hud:hover {
+    background: rgba(30, 18, 8, .9);
   }
 
-  .hud .more {
-    font-size: 18px;
-    line-height: 1;
-  }
-
-  .hud .div {
-    width: 1px;
+  .hud svg {
+    width: 18px;
     height: 18px;
-    margin: 0 2px;
-    background: rgba(255, 255, 255, .2);
-  }
-
-  .hud button,
-  .hud select {
-    color: inherit;
-    border: 0;
-    background: transparent;
-    padding: 6px 9px;
-    border-radius: 99px;
-    font: inherit;
-  }
-
-  .hud select {
-    padding: 6px 4px;
-    color-scheme: dark;
-  }
-
-  .hud button:hover,
-  .hud select:hover {
-    background: rgba(255, 255, 255, .14);
-  }
-
-  .hud .loop {
-    font-family: var(--f-ui);
-    font-size: 12px;
-  }
-
-  .hud .loop[aria-pressed="true"] {
-    background: #F4EAD9;
-    color: #2A1A0C;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
 </style>

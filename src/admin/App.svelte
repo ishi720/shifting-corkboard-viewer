@@ -5,26 +5,19 @@
   import { viewer, MAX_SLOTS, INTERVALS } from '../lib/viewer.svelte.js';
 
   let width = $state(1200);
-  let stage;
-  let fsError = $state(false);
   let editingId = $state(null); // 中身を編集中の枠ID
-  let fullscreen = $state(false);
   let newInput = $state();
   let newDrag = $state(false);
 
   const boardUrl = `${import.meta.env.BASE_URL}board.html`;
 
-  // 末尾の新しい枠の受け口。全画面・上限到達時・空の枠があるときは出さない
+  // 末尾の新しい枠の受け口。上限到達時・空の枠があるときは出さない
   const showAdd = $derived(
-    !fullscreen && viewer.slots.length < MAX_SLOTS && viewer.slots.every((s) => s.imgs.length),
+    viewer.slots.length < MAX_SLOTS && viewer.slots.every((s) => s.imgs.length),
   );
 
-  // 1行の最大枠数（画面幅で決定）
+  // 1行の枠数（画面幅で決定）。枠の数によらず固定し、枠を足しても大きさを変えない
   const perRow = $derived(width <= 540 ? 2 : width <= 980 ? 4 : 7);
-  const tiles = $derived(viewer.slots.length + (showAdd ? 1 : 0));
-  // 列数は枠の数によらず固定し、枠を足しても大きさを変えない。全画面だけは枠の数に合わせて広げる
-  const cols = $derived(fullscreen ? Math.max(1, Math.min(tiles, perRow)) : perRow);
-  const rows = $derived(Math.ceil(tiles / cols));
 
   // 枠の形・表示方法 → CSS変数
   $effect(() => {
@@ -42,13 +35,6 @@
     window.open(boardUrl, 'shifting-corkboard');
   }
 
-  async function toggleFs() {
-    try {
-      if (document.fullscreenElement) await document.exitFullscreen();
-      else await stage.requestFullscreen();
-    } catch { fsError = true; }
-  }
-
   function clearAll() { viewer.clearAll(); }
 
   function onKey(e) {
@@ -58,7 +44,6 @@
     else if (e.key === 'Home') { e.preventDefault(); viewer.rewind(); }
     else if (e.key === ' ') { e.preventDefault(); viewer.setPlay(!viewer.playing); }
     else if (e.key === 'r' || e.key === 'R') viewer.setShuffle(!viewer.shuffle);
-    else if (e.key === 'f' || e.key === 'F') toggleFs();
   }
 
   // 新しい枠への画像ドロップ
@@ -85,7 +70,6 @@
   ondragover={(e) => e.preventDefault()}
   ondrop={(e) => e.preventDefault()}
 />
-<svelte:document onfullscreenchange={() => (fullscreen = !!document.fullscreenElement)} />
 
 <div class="wrap">
   <header>
@@ -124,7 +108,6 @@
     </div>
     <div class="sep"></div>
     <div class="group">
-      <button onclick={toggleFs}>全画面</button>
       <button class="danger" onclick={clearAll}>すべて消去</button>
     </div>
   </div>
@@ -133,14 +116,13 @@
     <span>
       {#if !viewer.ready}読み込み中…
       {:else if !viewer.storageOk}<span class="warn">このブラウザでは画像を保存できません。再読み込みすると消え、コルクボードにも表示されません（プライベートブラウズを解除すると使えます）</span>
-      {:else if fsError}この画面では全画面表示を使えません
       {:else if viewer.total}{viewer.total}枚を読み込み済み
       {:else}まだ画像がありません{/if}
     </span>
-    <span><kbd>←</kbd><kbd>→</kbd> 切り替え　<kbd>Home</kbd> 最初へ　<kbd>Space</kbd> 再生　<kbd>R</kbd> シャッフル　<kbd>F</kbd> 全画面</span>
+    <span><kbd>←</kbd><kbd>→</kbd> 切り替え　<kbd>Home</kbd> 最初へ　<kbd>Space</kbd> 再生　<kbd>R</kbd> シャッフル</span>
   </p>
 
-  <div class="stage" role="list" bind:this={stage} style:--cols={cols} style:--rows={rows}>
+  <div class="stage" role="list" style:--cols={perRow}>
     {#each viewer.slots as slot, i (slot.id)}
       <Slot {slot} index={i} onedit={() => (editingId = slot.id)} />
     {/each}
@@ -337,13 +319,5 @@
     gap: 12px;
     justify-content: center;
     background: var(--bg);
-  }
-
-  .stage:fullscreen {
-    --colmax: calc((96vh - (var(--rows) - 1) * 12px) / var(--rows) * var(--ratio));
-
-    padding: 2vh 2vw;
-    align-content: center;
-    background: #000;
   }
 </style>
