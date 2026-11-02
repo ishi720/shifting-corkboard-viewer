@@ -22,7 +22,8 @@
   // 1行の最大枠数（画面幅で決定）
   const perRow = $derived(width <= 540 ? 2 : width <= 980 ? 4 : 7);
   const tiles = $derived(viewer.slots.length + (showAdd ? 1 : 0));
-  const cols = $derived(Math.max(1, Math.min(tiles, perRow)));
+  // 列数は枠の数によらず固定し、枠を足しても大きさを変えない。全画面だけは枠の数に合わせて広げる
+  const cols = $derived(fullscreen ? Math.max(1, Math.min(tiles, perRow)) : perRow);
   const rows = $derived(Math.ceil(tiles / cols));
 
   // 枠の形・表示方法 → CSS変数
