@@ -4,6 +4,7 @@
 //   - 受信側は状態を置き換え、未読の画像を読み込む
 
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate';
 import * as db from './db.js';
 
 export const MAX_SLOTS = 24;
@@ -438,6 +439,75 @@ class Viewer {
   clearAll() {
     for (const s of this.slots) this.#forget(s.imgs);
     this.slots = [];
+    this.playing = false;
+    this.playOwner = null;
+    this.commit();
+  }
+
+  // ---------------------------------------------------------------
+  // 書き出し・読み込み
+  //   zip の中身: manifest.json（状態と画像の一覧）+ images/ の画像・動画
+  // ---------------------------------------------------------------
+
+  /** 枠と画像・動画を zip にまとめて返す */
+  async exportZip() {
+    const files = {};
+    const images = {};
+    for (const id of new Set(this.slots.flatMap((s) => s.imgs))) {
+      const url = this.urls.get(id);
+      if (!url) continue;
+      const blob = await (await fetch(url)).blob();
+      const ext = (blob.type.split('/')[1] ?? 'bin').split(/[+;]/)[0];
+      const file = `images/${id}.${ext}`;
+      files[file] = new Uint8Array(await blob.arrayBuffer());
+      images[id] = { file, type: blob.type };
+    }
+    const manifest = {
+      app: CHANNEL, version: 1, images,
+      state: $state.snapshot({
+        slots: this.slots.map((s) => ({ ...s, imgs: s.imgs.filter((id) => images[id]) })),
+        shuffle: this.shuffle, ratio: this.ratio, fit: this.fit, interval: this.interval,
+      }),
+    };
+    files['manifest.json'] = strToU8(JSON.stringify(manifest, null, 2));
+    // 画像・動画はもともと圧縮済みなので、そのまま格納する
+    return new Blob([zipSync(files, { level: 0 })], { type: 'application/zip' });
+  }
+
+  /** exportZip の zip を読み込み、今の枠と画像をすべて置き換える。失敗時は例外 */
+  async importZip(file) {
+    let files, manifest;
+    try {
+      files = unzipSync(new Uint8Array(await file.arrayBuffer()));
+      manifest = JSON.parse(strFromU8(files['manifest.json']));
+    } catch { throw new Error('ファイルを読み込めませんでした'); }
+    if (manifest?.app !== CHANNEL || !Array.isArray(manifest.state?.slots)) {
+      throw new Error('このアプリで書き出したファイルではありません');
+    }
+
+    // 画像IDは振り直す
+    const ids = new Map();
+    const blobs = [];
+    for (const [old, info] of Object.entries(manifest.images ?? {})) {
+      const data = files[info?.file];
+      if (!data) continue;
+      ids.set(old, blobs.length);
+      blobs.push(new Blob([data], { type: info.type ?? '' }));
+    }
+
+    for (const s of this.slots) this.#forget(s.imgs);
+    const newIds = await this.#store(blobs);
+
+    const { state } = manifest;
+    this.slots = state.slots.slice(0, MAX_SLOTS).map((s) => {
+      const imgs = (s.imgs ?? []).filter((id) => ids.has(id)).map((id) => newIds[ids.get(id)]);
+      const order = s.order?.length === imgs.length ? s.order : [];
+      return { id: s.id ?? uid(), imgs, offset: s.offset ?? 0, order, pos: s.pos ?? 0 };
+    });
+    this.shuffle = !!state.shuffle;
+    this.ratio = state.ratio ?? '5/8';
+    this.fit = state.fit ?? 'cover';
+    this.interval = state.interval ?? 3000;
     this.playing = false;
     this.playOwner = null;
     this.commit();

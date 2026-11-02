@@ -8,6 +8,9 @@
   let editingId = $state(null); // 中身を編集中の枠ID
   let newInput = $state();
   let newDrag = $state(false);
+  let importInput = $state();
+  let busy = $state(''); // 書き出し・読み込み中の表示
+  let ioError = $state('');
 
   const boardUrl = `${import.meta.env.BASE_URL}board.html`;
 
@@ -36,6 +39,34 @@
   }
 
   function clearAll() { viewer.clearAll(); }
+
+  // 枠と画像・動画を zip でダウンロード
+  async function exportData() {
+    busy = '書き出し中…';
+    ioError = '';
+    try {
+      const blob = await viewer.exportZip();
+      const d = new Date();
+      const p = (n) => String(n).padStart(2, '0');
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `shifting-corkboard-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.zip`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    } catch { ioError = '書き出しに失敗しました'; }
+    busy = '';
+  }
+
+  // 書き出した zip を読み込み、今の内容と置き換える
+  async function importData(file) {
+    if (!file) return;
+    if (viewer.slots.length && !confirm('今の枠と画像はすべて置き換わります。読み込みますか？')) return;
+    busy = '読み込み中…';
+    ioError = '';
+    try { await viewer.importZip(file); }
+    catch (e) { ioError = e.message || '読み込みに失敗しました'; }
+    busy = '';
+  }
 
   function onKey(e) {
     if (e.target.closest('input,select,textarea,dialog')) return;
@@ -108,6 +139,10 @@
     </div>
     <div class="sep"></div>
     <div class="group">
+      <button onclick={exportData} disabled={!!busy || !viewer.total} title="枠と画像・動画を zip で保存">ダウンロード</button>
+      <button onclick={() => importInput.click()} disabled={!!busy} title="ダウンロードした zip を読み込む">インポート</button>
+      <input bind:this={importInput} type="file" accept=".zip,application/zip" hidden
+        onchange={(e) => { importData(e.currentTarget.files[0]); e.currentTarget.value = ''; }} />
       <button class="danger" onclick={clearAll}>すべて消去</button>
     </div>
   </div>
@@ -115,6 +150,8 @@
   <p class="note">
     <span>
       {#if !viewer.ready}読み込み中…
+      {:else if busy}{busy}
+      {:else if ioError}<span class="warn">{ioError}</span>
       {:else if !viewer.storageOk}<span class="warn">このブラウザでは画像を保存できません。再読み込みすると消え、コルクボードにも表示されません（プライベートブラウズを解除すると使えます）</span>
       {:else if viewer.total}{viewer.total}枚を読み込み済み
       {:else}まだ画像がありません{/if}
