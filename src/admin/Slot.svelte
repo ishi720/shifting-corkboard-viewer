@@ -120,8 +120,6 @@
     <span class="filebtn" title="この枠に画像・動画を追加">＋<input
         bind:this={input} type="file" accept="image/*,video/*" multiple
         aria-label="枠{n}に画像・動画を追加" onchange={onPick} /></span>
-    <button onclick={() => viewer.emptySlot(slot)} disabled={!len} aria-label="枠{n}の画像を空にする"
-      title="画像を空にする">空</button>
     <button class="danger" onclick={() => viewer.removeSlot(slot)}
       aria-label="枠{n}を削除" title="枠を削除">×</button>
   </div>

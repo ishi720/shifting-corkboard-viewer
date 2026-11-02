@@ -382,14 +382,6 @@ class Viewer {
     this.commit();
   }
 
-  emptySlot(slot) {
-    const s = this.#find(slot);
-    if (!s) return;
-    this.#forget(s.imgs);
-    s.imgs = []; s.offset = 0; s.order = []; s.pos = 0;
-    this.commit();
-  }
-
   /** 枠 s の表示を i 枚目にする */
   #show(s, i) {
     if (this.shuffle) this.#reshuffle(s, i);
