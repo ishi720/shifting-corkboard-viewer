@@ -91,10 +91,13 @@ class Viewer {
           if (!s.imgs.length) continue;
           live.add(s.id);
           const id = s.imgs[this.cur(s)];
+          // 動画を停止中の枠は進めない
+          if (s.hold === id) { this.#due.delete(s.id); continue; }
           const d = this.#due.get(s.id);
           if (d?.id === id && d.interval === interval) continue;
           const sec = this.durations.get(id);
-          this.#due.set(s.id, { id, interval, at: now + (sec ? sec * 1000 : interval) });
+          const ms = s.left?.id === id ? s.left.ms : sec ? sec * 1000 : interval;
+          this.#due.set(s.id, { id, interval, at: now + ms });
         }
         for (const sid of this.#due.keys()) if (!live.has(sid)) this.#due.delete(sid);
 
@@ -307,6 +310,8 @@ class Viewer {
 
   /** 枠 s を d 進める */
   #move(s, d) {
+    s.hold = null;
+    s.left = null;
     if (this.shuffle) this.#advance(s, d);
     else s.offset += d;
   }
@@ -354,6 +359,18 @@ class Viewer {
     this.commit();
   }
   setSpeed(ms) { this.interval = ms; this.commit(); }
+
+  /** 枠の表示中の動画を停止・再開する。停止中は再生しても枠を進めない
+   *  t: 再開時の動画の再生位置(秒)。残りの長さだけ表示してから進める */
+  holdVideo(slot, on, t = 0) {
+    const s = this.#find(slot);
+    if (!s?.imgs.length) return;
+    const id = s.imgs[this.cur(s)];
+    const sec = this.durations.get(id);
+    s.hold = on ? id : null;
+    s.left = !on && this.playing && sec ? { id, ms: Math.max(0, sec - t) * 1000 } : null;
+    this.commit();
+  }
 
   setRatio(v) { this.ratio = v; this.commit(); }
   setFit(v) { this.fit = v; this.commit(); }

@@ -132,7 +132,8 @@
     <div class="board" style:width="{layout.cols * layout.w + (layout.cols - 1) * layout.gap}px" style:--w="{layout.w}px" style:gap="{layout.gap}px">
       {#each cards as slot (slot.id)}
         {@const lk = look(slot.id)}
-        {@const src = viewer.url(slot.imgs[viewer.cur(slot)])}
+        {@const id = slot.imgs[viewer.cur(slot)]}
+        {@const src = viewer.url(id)}
         <figure class="card" style:--rot="{lk.rot}deg" style:--dx="{lk.dx * layout.gap}px" style:--dy="{lk.dy * layout.gap}px"
           style:--s={lk.scale} style:z-index={lk.z} style:--pin={lk.pin} style:--pin-x="{lk.pinX}%"
           style:--tape={lk.tapeColor} style:--tape-rot="{lk.tapeRot}deg"
@@ -140,7 +141,8 @@
           {#if lk.tape}<span class="tape" aria-hidden="true"></span>{:else}<span class="pin" aria-hidden="true"></span>{/if}
           <div class="photo">
             {#if src}
-              <Media {src} video={viewer.isVideo(slot.imgs[viewer.cur(slot)])} />
+              <Media {src} video={viewer.isVideo(id)} held={slot.hold === id}
+                ontoggle={(on, t) => viewer.holdVideo(slot, on, t)} />
             {/if}
           </div>
         </figure>

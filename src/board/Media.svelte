@@ -3,7 +3,8 @@
   // 新しいほうの準備ができてからフェードインする（一瞬消えるのを防ぐ）
   import { untrack } from 'svelte';
 
-  let { src, video = false } = $props();
+  // held: 動画を停止中か。ontoggle(停止するか, 再生位置秒) でクリックを伝える
+  let { src, video = false, held = false, ontoggle } = $props();
 
   const FADE = 350; // ms。CSS の animation と合わせる
 
@@ -22,11 +23,26 @@
     l.ready = true;
     setTimeout(() => { layers = layers.filter((x) => x.id >= id); }, FADE);
   }
+
+  // 停止状態は共有の状態に合わせる
+  $effect(() => {
+    const v = layers.at(-1)?.el;
+    if (!v) return;
+    if (held) v.pause();
+    else v.play().catch(() => {});
+  });
+
+  // 動画はクリックで停止・再生
+  function toggle(e) {
+    const v = e.currentTarget;
+    ontoggle?.(!v.paused, v.currentTime);
+  }
 </script>
 
 {#each layers as l (l.id)}
   {#if l.video}
-    <video src={l.src} class:in={l.ready} autoplay muted loop playsinline
+    <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
+    <video src={l.src} class:in={l.ready} autoplay muted loop playsinline onclick={toggle} bind:this={l.el}
       onloadeddata={() => ready(l.id)} onerror={() => ready(l.id)}></video>
   {:else}
     <img src={l.src} alt="" class:in={l.ready} onload={() => ready(l.id)} onerror={() => ready(l.id)} />
