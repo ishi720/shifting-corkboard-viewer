@@ -1,11 +1,22 @@
 # Shifting Corkboard Viewer
 
-複数の枠の画像・動画を、枠ごとに切り替えて表示するコルクビュー。
+画像のスライドショーや動画を、コルクボード上で動的に動かすWEBアプリケーション。
+ブラウザのIndexedDBを使ってそれぞれの環境だけでデータを持つため、インターネット上にデータは保存しない。
 
 | 画面 | URL | 役割 |
 | --- | --- | --- |
-| 管理画面 | `/shifting-corkboard-viewer/` | 画像の追加、枠の増減、切り替え操作 |
+| 作画面 | `/shifting-corkboard-viewer/` | 画像の追加、枠の増減、切り替え操作 |
 | コルクボード | `/shifting-corkboard-viewer/board.html` | 表示専用。管理画面と連動 |
+
+## 画面イメージ
+
+### 操作画面
+
+<img width="1359" height="601" alt="image" src="https://github.com/user-attachments/assets/d99c9686-6724-49e0-ba6a-559f6cf808f2" />
+
+### コルクボード画面
+
+<img width="1149" height="828" alt="image" src="https://github.com/user-attachments/assets/4f393455-5474-403d-95bd-6a8e7b68d0e8" />
 
 
 ## ローカル起動
@@ -21,7 +32,7 @@ npm run dev
 ## ファイル構成
 
 ```
-index.html            管理画面
+index.html            操作画面
 board.html            コルクボード
 src/
   lib/                共通
