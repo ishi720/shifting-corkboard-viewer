@@ -105,7 +105,7 @@
   });
 
   onMount(() => {
-    viewer.init();
+    viewer.init({ player: true });
     wake();
     return () => clearTimeout(hudTimer);
   });

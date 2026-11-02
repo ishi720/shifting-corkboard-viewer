@@ -11,7 +11,7 @@
 
   const index = $derived(viewer.slots.findIndex((s) => s.id === slotId));
   const slot = $derived(viewer.slots[index]);
-  const k = $derived(slot ? viewer.cur(slot) : 0);
+  const k = $derived(slot ? viewer.shown(slot) : 0);
 
   const hasFiles = (e) => e.dataTransfer.types.includes('Files');
 

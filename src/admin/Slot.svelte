@@ -14,7 +14,7 @@
   let over = $state(false);
 
   const len = $derived(slot.imgs.length);
-  const k = $derived(viewer.cur(slot));
+  const k = $derived(viewer.shown(slot));
   const src = $derived(len ? viewer.url(slot.imgs[k]) : null);
   const video = $derived(len && viewer.isVideo(slot.imgs[k]));
   const n = $derived(index + 1);

@@ -3,6 +3,7 @@
 //   - 状態の変更は保存して BroadcastChannel で他タブへ通知
 //   - 受信側は状態を置き換え、未読の画像を読み込む
 
+import { untrack } from 'svelte';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate';
 import * as db from './db.js';
@@ -43,7 +44,7 @@ class Viewer {
   /** 再生 */
   playing = $state(false);
   interval = $state(3000);
-  /** タイマー担当の画面ID（二重進行の防止） */
+  /** タイマー担当のコルクボードID（二重進行の防止）。null なら開いているボードが引き受ける */
   playOwner = $state(null);
 
   ready = $state(false);
@@ -62,14 +63,25 @@ class Viewer {
   #saving = Promise.resolve();
   #applySeq = 0;
   #id = uid();
-  #heardOwner = false;
+  /** コルクボードか。再生のタイマーはボードだけが動かす */
+  #player = false;
+  /** 管理画面の再生中の表示。枠ID → 画像ID（再生でボードが進めても変えない） */
+  #shown = new SvelteMap();
   /** 再生中、枠ごとの次に進める時刻。枠ID → { id: 表示中の画像ID, at, interval } */
   #due = new Map();
 
   constructor() {
-    // 再生のタイマー（担当画面のみ）
-    // 枠ごとに、画像は間隔、動画はその長さだけ表示してから進める
     $effect.root(() => {
+      // 担当のいない再生はボードが引き受ける（後から開いたボード・担当が閉じたあと）
+      $effect(() => {
+        // #player は $state ではないので最後に見る（先に見ると再生の変化を追えない）
+        if (this.playing && !this.playOwner && this.#player) {
+          untrack(() => { this.playOwner = this.#id; this.commit(); });
+        }
+      });
+
+      // 再生のタイマー（担当のボードのみ）
+      // 枠ごとに、画像は間隔、動画はその長さだけ表示してから進める
       $effect(() => {
         if (!this.playing || this.playOwner !== this.#id) { this.#due.clear(); return; }
         const now = performance.now();
@@ -93,10 +105,9 @@ class Viewer {
       });
     });
 
-    // 担当画面が閉じたら再生停止
+    // 担当のボードが閉じたら担当を空ける（再生は続け、ほかのボードが引き受ける）
     window.addEventListener('pagehide', () => {
       if (!this.playing || this.playOwner !== this.#id) return;
-      this.playing = false;
       this.playOwner = null;
       const state = this.#snapshot();
       this.#channel?.postMessage({ type: 'state', state });
@@ -108,16 +119,12 @@ class Viewer {
   // 起動・保存・同期
   // ---------------------------------------------------------------
 
-  /** seed: 管理画面から呼ぶとき true。未使用の画像を掃除する */
-  async init({ seed = false } = {}) {
+  /** seed: 管理画面から呼ぶとき true。未使用の画像を掃除する
+   *  player: コルクボードから呼ぶとき true。開いたら再生を始め、タイマーを担当する */
+  async init({ seed = false, player = false } = {}) {
+    this.#player = player;
     this.#channel?.addEventListener('message', (e) => {
-      const m = e.data;
-      if (m?.type === 'state') {
-        if (m.state.playing && m.state.playOwner === this.playOwner) this.#heardOwner = true;
-        this.#apply(m.state);
-      } else if (m?.type === 'who-plays' && this.playing && this.playOwner === this.#id) {
-        this.commit(); // 担当の生存通知
-      }
+      if (e.data?.type === 'state') this.#apply(e.data.state);
     });
 
     let saved = null;
@@ -126,14 +133,10 @@ class Viewer {
     if (saved) {
       await this.#apply(saved);
       if (seed) this.#cleanup();
-      // 担当画面が残っていなければ停止
-      if (this.playing) {
-        this.#heardOwner = false;
-        this.#channel?.postMessage({ type: 'who-plays' });
-        setTimeout(() => { if (this.playing && !this.#heardOwner) this.setPlay(false); }, 700);
-      }
     }
+    this.#snap();
     this.ready = true;
+    if (player) this.setPlay(true);
   }
 
   #snapshot() {
@@ -145,6 +148,7 @@ class Viewer {
 
   /** 保存して他画面へ通知 */
   commit() {
+    this.#snap(); // この画面での操作は管理画面の表示にも反映する
     const state = this.#snapshot();
     // 保存は直列で行う
     this.#saving = this.#saving
@@ -169,6 +173,8 @@ class Viewer {
     this.playing = !!state.playing;
     this.interval = state.interval ?? 3000;
     this.playOwner = state.playOwner ?? null;
+    // 再生中にボードが進めた分は、管理画面の表示に反映しない
+    if (!this.playing) this.#snap();
 
     for (const [id, url] of this.urls) {
       if (!ids.has(id)) { URL.revokeObjectURL(url); this.#untrack(id); }
@@ -260,6 +266,24 @@ class Viewer {
     return mod(s.offset, len);
   }
 
+  /** 枠 s の画面に出す画像番号。管理画面では再生中も止めておいた画像を出す */
+  shown(s) {
+    if (!this.#player && this.playing) {
+      const i = s.imgs.indexOf(this.#shown.get(s.id));
+      if (i >= 0) return i;
+    }
+    return this.cur(s);
+  }
+
+  /** 管理画面の表示を今の位置に合わせる */
+  #snap() {
+    if (this.#player) return;
+    untrack(() => {
+      this.#shown.clear();
+      for (const s of this.slots) if (s.imgs.length) this.#shown.set(s.id, s.imgs[this.cur(s)]);
+    });
+  }
+
   // ---------------------------------------------------------------
   // 操作（最後に commit）
   // ---------------------------------------------------------------
@@ -323,10 +347,10 @@ class Viewer {
     this.commit();
   }
 
-  /** 再生開始・停止。操作した画面が担当 */
+  /** 再生開始・停止。ボードで操作したらそのボードが担当、管理画面からなら開いているボードが引き受ける */
   setPlay(on) {
     this.playing = !!on;
-    this.playOwner = on ? this.#id : null;
+    this.playOwner = on && this.#player ? this.#id : null;
     this.commit();
   }
   setSpeed(ms) { this.interval = ms; this.commit(); }
