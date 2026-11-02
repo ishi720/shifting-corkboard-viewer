@@ -165,6 +165,11 @@
 <style>
   /* ---------- レイアウト・見出し ---------- */
 
+  /* スクロールバーの幅を常に空けておく。縦に長くなってバーが出ても枠が縮まない */
+  :global(html) {
+    scrollbar-gutter: stable;
+  }
+
   .wrap {
     max-width: 1480px;
     margin: 0 auto;
