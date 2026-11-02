@@ -121,10 +121,14 @@
 <!-- 全画面時は操作パネルと一緒にカーソルも隠す -->
 <main class="cork" class:idle={fullscreen && !hudVisible} ondblclick={toggleFs}>
   {#if viewer.ready && !cards.length}
-    <div class="memo">
-      <p><b>まだ何も貼られていません</b></p>
-      <p>管理画面で画像・動画を追加すると、ここに表示されます。</p>
-      <a href={import.meta.env.BASE_URL}>管理画面を開く</a>
+    <!-- ピンから吊るしたカード。ゆっくり揺れる -->
+    <div class="soon">
+      <span class="pin" style:--pin="#D2453A" style:--pin-x="50%" aria-hidden="true"></span>
+      <p class="soon-title">Coming soon</p>
+      <svg class="soon-line" viewBox="0 0 200 14" aria-hidden="true">
+        <path d="M4 9 C 50 3, 90 13, 130 7 S 185 5, 196 8" />
+      </svg>
+      <p class="soon-sub">ただいま準備中です</p>
     </div>
   {:else if viewer.ready}
     <div class="board" style:width="{layout.cols * layout.w + (layout.cols - 1) * layout.gap}px" style:--w="{layout.w}px" style:gap="{layout.gap}px">
@@ -290,25 +294,74 @@
 
   /* ---------- 未登録時の付箋 ---------- */
 
-  .memo {
-    max-width: min(360px, 80vw);
-    padding: 22px 26px;
-    background: #FFF4A8;
+  /* 罫線入りの紙 */
+  .soon {
+    position: relative;
+    width: min(440px, 82vw);
+    padding: clamp(28px, 6vmin, 44px) clamp(24px, 6vmin, 48px) clamp(22px, 5vmin, 36px);
+    background:
+      repeating-linear-gradient(transparent 0 27px, rgba(47, 111, 208, .12) 27px 28px),
+      linear-gradient(#FBFAF6, #F3EFE4);
     color: #3D3420;
+    text-align: center;
+    border-radius: 2px;
+    transform-origin: 50% 0;
+    animation: sway 6s ease-in-out infinite;
+    box-shadow:
+      0 1px 1px rgba(0, 0, 0, .18),
+      0 10px 20px rgba(40, 20, 5, .35),
+      0 26px 40px -16px rgba(40, 20, 5, .4);
+  }
+
+  .soon-title {
+    margin: 0;
+    font-family: "Caveat", var(--f-ui);
+    font-size: clamp(44px, 11vmin, 72px);
+    font-weight: 600;
+    line-height: 1.05;
+  }
+
+  .soon-line {
+    display: block;
+    width: 70%;
+    height: 14px;
+    margin: 4px auto 14px;
+    fill: none;
+    stroke: #D2453A;
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-dasharray: 220;
+    stroke-dashoffset: 220;
+    animation: draw 1.2s .3s ease-out forwards;
+  }
+
+  .soon-sub {
+    margin: 0;
     font-family: var(--f-ui);
-    font-size: 14px;
-    line-height: 1.7;
-    transform: rotate(-1.5deg);
-    box-shadow: 0 8px 18px rgba(40, 20, 5, .35);
+    font-size: 13px;
+    letter-spacing: .2em;
+    color: #8A7A5C;
   }
 
-  .memo p {
-    margin: 0 0 6px;
+  @keyframes sway {
+    0%, 100% { transform: rotate(-2deg); }
+    50%      { transform: rotate(1deg); }
   }
 
-  .memo a {
-    color: #2C55C9;
-    font-weight: 700;
+  @keyframes draw {
+    to { stroke-dashoffset: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .soon {
+      animation: none;
+      transform: rotate(-1.5deg);
+    }
+
+    .soon-line {
+      animation: none;
+      stroke-dashoffset: 0;
+    }
   }
 
   /* ---------- 操作パネル（右上。マウス操作で表示） ---------- */
