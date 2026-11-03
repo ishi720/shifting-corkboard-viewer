@@ -170,7 +170,7 @@
         <button class="addtile" class:drag={newDrag} onclick={() => newInput.click()}
           ondragover={onNewOver} ondragleave={() => (newDrag = false)} ondrop={onNewDrop}>
           <span class="addtile-plus" aria-hidden="true">＋</span>
-          クリックかドロップで<br />新しい枠に画像・動画を追加
+          クリックまたはドロップで画像・動画を追加
         </button>
         <input bind:this={newInput} type="file" accept="image/*,video/*" multiple hidden
           onchange={(e) => { viewer.addNew(e.currentTarget.files); e.currentTarget.value = ''; }} />

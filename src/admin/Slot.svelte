@@ -135,7 +135,7 @@
       </button>
     {:else}
       <button class="empty" onclick={() => input.click()}>
-        <strong>{n}</strong>クリックかドロップで<br />画像・動画を追加
+        <strong>{n}</strong>クリックまたはドロップで画像・動画を追加
       </button>
     {/if}
   </div>
