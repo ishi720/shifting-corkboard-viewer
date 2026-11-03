@@ -9,6 +9,8 @@ import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate';
 import * as db from './db.js';
 
 export const MAX_SLOTS = 24;
+/** 枠の名前の最大文字数 */
+export const NAME_MAX = 30;
 const CHANNEL = 'shifting-corkboard-viewer';
 
 const mod = (a, n) => ((a % n) + n) % n;
@@ -33,7 +35,8 @@ const images = (list) =>
     .sort((a, b) => a.name.localeCompare(b.name, 'ja', { numeric: true }));
 
 class Viewer {
-  /** 枠: { id, imgs: 画像ID[], offset, order, pos }
+  /** 枠: { id, imgs: 画像ID[], offset, order, pos, name? }
+   *  name は管理画面での表示名（なければ「枠 n」）
    *  offset は表示中の画像番号（枚数で割った余りを使う）
    *  order/pos はシャッフル時の枠ごとの並びと位置 */
   slots = $state([]);
@@ -375,6 +378,22 @@ class Viewer {
   setRatio(v) { this.ratio = v; this.commit(); }
   setFit(v) { this.fit = v; this.commit(); }
 
+  /** 枠の表示名。名前がなければ「枠 n」 */
+  label(slot) {
+    return slot.name || `枠 ${this.slots.findIndex((s) => s.id === slot.id) + 1}`;
+  }
+
+  /** 枠の名前を変える。空なら名前なし（「枠 n」に戻る） */
+  renameSlot(slot, name) {
+    const s = this.#find(slot);
+    if (!s) return;
+    const v = String(name ?? '').trim().slice(0, NAME_MAX);
+    if ((s.name ?? '') === v) return;
+    if (v) s.name = v;
+    else delete s.name;
+    this.commit();
+  }
+
   removeSlot(slot) {
     const s = this.#find(slot);
     if (!s) return;
@@ -535,7 +554,10 @@ class Viewer {
     this.slots = state.slots.slice(0, MAX_SLOTS).map((s) => {
       const imgs = (s.imgs ?? []).filter((id) => ids.has(id)).map((id) => newIds[ids.get(id)]);
       const order = s.order?.length === imgs.length ? s.order : [];
-      return { id: s.id ?? uid(), imgs, offset: s.offset ?? 0, order, pos: s.pos ?? 0 };
+      const slot = { id: s.id ?? uid(), imgs, offset: s.offset ?? 0, order, pos: s.pos ?? 0 };
+      const name = typeof s.name === 'string' ? s.name.trim().slice(0, NAME_MAX) : '';
+      if (name) slot.name = name;
+      return slot;
     });
     this.shuffle = !!state.shuffle;
     this.ratio = state.ratio ?? '5/8';

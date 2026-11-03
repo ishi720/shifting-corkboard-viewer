@@ -4,7 +4,7 @@
 </script>
 
 <script>
-  import { viewer } from '../lib/viewer.svelte.js';
+  import { viewer, NAME_MAX } from '../lib/viewer.svelte.js';
 
   let { slot, index, onedit } = $props();
 
@@ -12,6 +12,24 @@
   let dragging = $state(false);
   let lifting = $state(false);
   let over = $state(false);
+  let naming = $state(false); // 名前を編集中か
+  let draft = $state('');
+
+  // ---- 名前の変更（Enter・フォーカスを外すと確定、Esc で取り消し） ----
+  function startNaming() {
+    draft = slot.name ?? '';
+    naming = true;
+  }
+  function endNaming(save) {
+    if (!naming) return;
+    naming = false;
+    if (save) viewer.renameSlot(slot, draft);
+  }
+  function onNameKey(e) {
+    if (e.key === 'Enter') { e.preventDefault(); endNaming(true); }
+    else if (e.key === 'Escape') { e.preventDefault(); endNaming(false); }
+  }
+  const autofocus = (el) => { el.focus(); el.select(); };
 
   const len = $derived(slot.imgs.length);
   const k = $derived(viewer.shown(slot));
@@ -74,15 +92,23 @@
   class:lifting
   class:over
   role="listitem"
-  draggable="true"
+  draggable={!naming}
   ondragstart={onMoveStart}
   ondragend={onMoveEnd}
   ondragover={onMoveOver}
   ondragleave={onMoveLeave}
   ondrop={onMoveDrop}
 >
-  <div class="slot-head" title="ドラッグで並べ替え">
-    <b>⠿ 枠 {n}</b>
+  <div class="slot-head">
+    {#if naming}
+      <input class="name-input" bind:value={draft} maxlength={NAME_MAX} placeholder="枠 {n}"
+        aria-label="枠{n}の名前" onkeydown={onNameKey} onblur={() => endNaming(true)} {@attach autofocus} />
+    {:else}
+      <!-- ダブルクリックはマウス用の近道。キーボードでは ✎ ボタンで変更できる -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <b class="name" title="ドラッグで並べ替え・ダブルクリックで名前を変更" ondblclick={startNaming}>⠿ {viewer.label(slot)}</b>
+      <button class="rename" onclick={startNaming} aria-label="枠{n}の名前を変更" title="名前を変更">✎</button>
+    {/if}
     <span class="n">{len ? `${k + 1} / ${len}` : '空'}</span>
   </div>
 
@@ -137,16 +163,67 @@
 
   .slot-head {
     display: flex;
-    justify-content: space-between;
-    align-items: baseline;
+    align-items: center;
+    gap: 2px;
+    min-height: 24px;
     font-size: 12px;
     color: var(--muted);
   }
 
-  .slot-head b {
+  /* 長い名前は省略 */
+  .name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     color: var(--ink);
     font-weight: 700;
     cursor: grab;
+  }
+
+  /* 名前の変更ボタンはホバー・フォーカス時だけ出す */
+  .rename {
+    flex: none;
+    padding: 0 4px;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1;
+    opacity: 0;
+  }
+
+  .slot:hover .rename,
+  .rename:focus-visible {
+    opacity: 1;
+  }
+
+  .rename:hover {
+    color: var(--accent);
+  }
+
+  .name-input {
+    flex: 1;
+    min-width: 0;
+    padding: 2px 6px;
+    font: inherit;
+    font-weight: 700;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: 5px;
+  }
+
+  .slot-head .n {
+    margin-left: auto;
+    padding-left: 6px;
+    flex: none;
+  }
+
+  @media (hover: none) {
+    .rename {
+      opacity: 1;
+    }
   }
 
   /* ---------- 並べ替え ---------- */

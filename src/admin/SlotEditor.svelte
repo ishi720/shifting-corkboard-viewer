@@ -75,7 +75,7 @@
 >
   {#if slot}
     <header>
-      <h2 id="slot-editor-title">枠 {index + 1} の画像 <small>{slot.imgs.length}枚</small></h2>
+      <h2 id="slot-editor-title">{viewer.label(slot)} の画像 <small>{slot.imgs.length}枚</small></h2>
       <button onclick={() => dialog.close()} aria-label="閉じる">×</button>
     </header>
 

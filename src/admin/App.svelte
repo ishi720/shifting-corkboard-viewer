@@ -257,6 +257,7 @@
   }
 
   .addcol-head {
+    min-height: 24px; /* Slot の見出しと同じ高さ */
     font-size: 12px;
   }
 
