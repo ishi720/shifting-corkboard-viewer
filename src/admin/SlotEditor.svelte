@@ -50,7 +50,7 @@
   }
   function onFileDrop(e) {
     e.preventDefault();
-    e.stopPropagation(); // 管理画面全体への配布にしない
+    e.stopPropagation(); // 操作画面全体への配布にしない
     dropping = false;
     if (hasFiles(e)) viewer.addTo(slot, e.dataTransfer.files);
   }

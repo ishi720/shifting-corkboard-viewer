@@ -5,8 +5,8 @@
 
 | 画面 | URL | 役割 |
 | --- | --- | --- |
-| 作画面 | `/shifting-corkboard-viewer/` | 画像の追加、枠の増減、切り替え操作 |
-| コルクボード | `/shifting-corkboard-viewer/board.html` | 表示専用。管理画面と連動 |
+| 操作画面 | `/shifting-corkboard-viewer/` | 画像の追加、枠の増減、切り替え操作 |
+| コルクボード | `/shifting-corkboard-viewer/board.html` | 表示専用。操作画面と連動 |
 
 ## 画面イメージ
 
@@ -26,7 +26,7 @@ npm install
 npm run dev
 ```
 
-- 管理画面：`http://localhost:5173/`
+- 操作画面：`http://localhost:5173/`
 - コルクボード：`http://localhost:5173/board.html`
 
 ## ファイル構成

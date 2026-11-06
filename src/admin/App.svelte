@@ -104,7 +104,7 @@
 
 <div class="wrap">
   <header>
-    <h1>Shifting Corkboard <small>管理画面</small></h1>
+    <h1>Shifting Corkboard <small>操作画面</small></h1>
     <a class="boardlink" href={boardUrl} target="shifting-corkboard"
       onclick={(e) => { e.preventDefault(); openBoard(); }}>コルクボードを開く ↗</a>
   </header>

@@ -1,4 +1,4 @@
-// 状態とロジック。管理画面・コルクボード共通
+// 状態とロジック。操作画面・コルクボード共通
 //   - 画像・動画は IndexedDB に保存し、表示用URLは各画面で作る
 //   - 状態の変更は保存して BroadcastChannel で他タブへ通知
 //   - 受信側は状態を置き換え、未読の画像を読み込む
@@ -36,7 +36,7 @@ const images = (list) =>
 
 class Viewer {
   /** 枠: { id, imgs: 画像ID[], offset, order, pos, name? }
-   *  name は管理画面での表示名（なければ「枠 n」）
+   *  name は操作画面での表示名（なければ「枠 n」）
    *  offset は表示中の画像番号（枚数で割った余りを使う）
    *  order/pos はシャッフル時の枠ごとの並びと位置 */
   slots = $state([]);
@@ -68,7 +68,7 @@ class Viewer {
   #id = uid();
   /** コルクボードか。再生のタイマーはボードだけが動かす */
   #player = false;
-  /** 管理画面の再生中の表示。枠ID → 画像ID（再生でボードが進めても変えない） */
+  /** 操作画面の再生中の表示。枠ID → 画像ID（再生でボードが進めても変えない） */
   #shown = new SvelteMap();
   /** 再生中、枠ごとの次に進める時刻。枠ID → { id: 表示中の画像ID, at, interval } */
   #due = new Map();
@@ -125,7 +125,7 @@ class Viewer {
   // 起動・保存・同期
   // ---------------------------------------------------------------
 
-  /** seed: 管理画面から呼ぶとき true。未使用の画像を掃除する
+  /** seed: 操作画面から呼ぶとき true。未使用の画像を掃除する
    *  player: コルクボードから呼ぶとき true。開いたら再生を始め、タイマーを担当する */
   async init({ seed = false, player = false } = {}) {
     this.#player = player;
@@ -154,7 +154,7 @@ class Viewer {
 
   /** 保存して他画面へ通知 */
   commit() {
-    this.#snap(); // この画面での操作は管理画面の表示にも反映する
+    this.#snap(); // この画面での操作は操作画面の表示にも反映する
     const state = this.#snapshot();
     // 保存は直列で行う
     this.#saving = this.#saving
@@ -179,7 +179,7 @@ class Viewer {
     this.playing = !!state.playing;
     this.interval = state.interval ?? 3000;
     this.playOwner = state.playOwner ?? null;
-    // 再生中にボードが進めた分は、管理画面の表示に反映しない
+    // 再生中にボードが進めた分は、操作画面の表示に反映しない
     if (!this.playing) this.#snap();
 
     for (const [id, url] of this.urls) {
@@ -272,7 +272,7 @@ class Viewer {
     return mod(s.offset, len);
   }
 
-  /** 枠 s の画面に出す画像番号。管理画面では再生中も止めておいた画像を出す */
+  /** 枠 s の画面に出す画像番号。操作画面では再生中も止めておいた画像を出す */
   shown(s) {
     if (!this.#player && this.playing) {
       const i = s.imgs.indexOf(this.#shown.get(s.id));
@@ -281,7 +281,7 @@ class Viewer {
     return this.cur(s);
   }
 
-  /** 管理画面の表示を今の位置に合わせる */
+  /** 操作画面の表示を今の位置に合わせる */
   #snap() {
     if (this.#player) return;
     untrack(() => {
@@ -355,7 +355,7 @@ class Viewer {
     this.commit();
   }
 
-  /** 再生開始・停止。ボードで操作したらそのボードが担当、管理画面からなら開いているボードが引き受ける */
+  /** 再生開始・停止。ボードで操作したらそのボードが担当、操作画面からなら開いているボードが引き受ける */
   setPlay(on) {
     this.playing = !!on;
     this.playOwner = on && this.#player ? this.#id : null;
