@@ -72,6 +72,7 @@ class Viewer {
   #shown = new SvelteMap();
   /** 再生中、枠ごとの次に進める時刻。枠ID → { id: 表示中の画像ID, at, interval } */
   #due = new Map();
+  #persistAsked = false;
 
   constructor() {
     $effect.root(() => {
@@ -207,8 +208,19 @@ class Viewer {
     } catch { /* 失敗しても無害 */ }
   }
 
+  /** ブラウザに保存データを自動で消さないよう頼む（容量不足時の削除を防ぐ）。1回だけ
+   *  Firefox では許可を求める表示が出るので、画像を追加する操作の中で呼ぶ */
+  #persist() {
+    if (this.#persistAsked) return;
+    this.#persistAsked = true;
+    const s = navigator.storage;
+    if (!s?.persist) return;
+    s.persisted().then((ok) => ok || s.persist()).catch(() => {});
+  }
+
   /** Blob を保存し、画像IDを返す */
   async #store(blobs) {
+    this.#persist();
     const entries = blobs.map((b) => [uid(), b]);
     try { await db.putImages(entries); } catch { this.storageOk = false; }
     for (const [id, b] of entries) this.#track(id, b);
