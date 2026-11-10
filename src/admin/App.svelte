@@ -1,5 +1,5 @@
 <script>
-  import { onMount, untrack } from 'svelte';
+  import { onMount } from 'svelte';
   import Slot from './Slot.svelte';
   import SlotEditor from './SlotEditor.svelte';
   import { viewer, MAX_SLOTS, INTERVALS } from '../lib/viewer.svelte.js';
@@ -27,11 +27,6 @@
     const r = document.documentElement.style;
     r.setProperty('--ratio', viewer.ratio);
     r.setProperty('--fit', viewer.fit);
-  });
-
-  // 再生を始めたら動画を頭から（動画の長さで枠を進めるタイミングと合わせる）
-  $effect(() => {
-    if (viewer.playing) untrack(() => document.querySelectorAll('.stage video').forEach((v) => { v.currentTime = 0; }));
   });
 
   function openBoard() {

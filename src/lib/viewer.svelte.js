@@ -127,7 +127,7 @@ class Viewer {
   // ---------------------------------------------------------------
 
   /** seed: 操作画面から呼ぶとき true。未使用の画像を掃除する
-   *  player: コルクボードから呼ぶとき true。開いたら再生を始め、タイマーを担当する */
+   *  player: コルクボードから呼ぶとき true。再生中ならタイマーを担当する（再生の ON/OFF は保存どおり） */
   async init({ seed = false, player = false } = {}) {
     this.#player = player;
     this.#channel?.addEventListener('message', (e) => {
@@ -143,7 +143,6 @@ class Viewer {
     }
     this.#snap();
     this.ready = true;
-    if (player) this.setPlay(true);
   }
 
   #snapshot() {
@@ -153,9 +152,10 @@ class Viewer {
     });
   }
 
-  /** 保存して他画面へ通知 */
-  commit() {
-    this.#snap(); // この画面での操作は操作画面の表示にも反映する
+  /** 保存して他画面へ通知
+   *  shown: 操作画面の表示を今の位置に合わせる枠。ほかの枠の表示はそのまま */
+  commit(shown = []) {
+    this.#snap(shown);
     const state = this.#snapshot();
     // 保存は直列で行う
     this.#saving = this.#saving
@@ -177,11 +177,12 @@ class Viewer {
     this.shuffle = !!state.shuffle;
     this.ratio = state.ratio ?? '5/8';
     this.fit = state.fit ?? 'cover';
-    this.playing = !!state.playing;
     this.interval = state.interval ?? 3000;
+    const wasPlaying = this.playing;
     this.playOwner = state.playOwner ?? null;
-    // 再生中にボードが進めた分は、操作画面の表示に反映しない
-    if (!this.playing) this.#snap();
+    this.playing = !!state.playing;
+    // 停止中にボードで切り替えた分だけ操作画面に反映する。再生で進んだ分・再生の ON/OFF では変えない
+    if (!wasPlaying && !this.playing) this.#snap();
 
     for (const [id, url] of this.urls) {
       if (!ids.has(id)) { URL.revokeObjectURL(url); this.#untrack(id); }
@@ -284,22 +285,29 @@ class Viewer {
     return mod(s.offset, len);
   }
 
-  /** 枠 s の画面に出す画像番号。操作画面では再生中も止めておいた画像を出す */
+  /** 枠 s の画面に出す画像番号。操作画面では再生で進んだ分を出さず、ここで操作した画像を出す */
   shown(s) {
-    if (!this.#player && this.playing) {
+    if (!this.#player) {
       const i = s.imgs.indexOf(this.#shown.get(s.id));
       if (i >= 0) return i;
     }
     return this.cur(s);
   }
 
-  /** 操作画面の表示を今の位置に合わせる */
-  #snap() {
+  /** 操作画面の表示を今の位置に合わせる。slots を省くと全枠 */
+  #snap(slots) {
     if (this.#player) return;
     untrack(() => {
-      this.#shown.clear();
-      for (const s of this.slots) if (s.imgs.length) this.#shown.set(s.id, s.imgs[this.cur(s)]);
+      if (!slots) { this.#shown.clear(); slots = this.slots; }
+      for (const s of slots) if (s.imgs.length) this.#shown.set(s.id, s.imgs[this.cur(s)]);
     });
+  }
+
+  /** 操作画面なら、枠 s の位置を操作画面に出している画像に戻す（そこから操作する） */
+  #fromShown(s) {
+    if (this.#player || !s.imgs.length) return;
+    const i = this.shown(s);
+    if (i !== this.cur(s)) this.#show(s, i);
   }
 
   // ---------------------------------------------------------------
@@ -308,8 +316,8 @@ class Viewer {
 
   /** 全枠をそれぞれ d 進める */
   step(d) {
-    for (const s of this.slots) this.#move(s, d);
-    this.commit();
+    for (const s of this.slots) { this.#fromShown(s); this.#move(s, d); }
+    this.commit(this.slots);
   }
 
   /** 再生タイマー。時刻が来た枠を進める */
@@ -353,7 +361,7 @@ class Viewer {
       s.offset = 0;
       if (this.shuffle) this.#reshuffle(s, 0);
     }
-    this.commit();
+    this.commit(this.slots);
   }
 
   setShuffle(on) {
@@ -426,8 +434,9 @@ class Viewer {
   stepSlot(slot, d) {
     const s = this.#find(slot);
     if (!s?.imgs.length) return;
+    this.#fromShown(s);
     this.#move(s, d);
-    this.commit();
+    this.commit([s]);
   }
 
   /** 枠 s の表示を i 枚目にする */
@@ -440,7 +449,7 @@ class Viewer {
     const s = this.#find(slot);
     if (!s) return;
     this.#show(s, i);
-    this.commit();
+    this.commit([s]);
   }
 
   /** 枠内の画像を from 番目から to 番目へ。表示中の画像は変えない */
@@ -458,13 +467,16 @@ class Viewer {
   removeImage(slot, i) {
     const s = this.#find(slot);
     if (!s) return;
+    // 操作画面に出している画像を消すときは、そこを基準に次の画像を出す
+    const mine = i === this.shown(s);
+    if (mine) this.#fromShown(s);
     const k = this.cur(s);
     const shown = s.imgs[k];
     const [id] = s.imgs.splice(i, 1);
     this.#forget([id]);
     if (!s.imgs.length) { s.offset = 0; s.order = []; s.pos = 0; }
     else this.#show(s, id === shown ? Math.min(k, s.imgs.length - 1) : s.imgs.indexOf(shown));
-    this.commit();
+    this.commit(mine ? [s] : []);
   }
 
   /** 枠 s に画像を足し、足した最初の画像を表示する */
@@ -485,7 +497,7 @@ class Viewer {
     const s = this.#find(slot);
     if (!s) { this.#forget(ids); return; }
     this.#push(s, ids);
-    this.commit();
+    this.commit([s]);
   }
 
   /** 新しい枠を末尾に作り、画像を入れる */
@@ -498,7 +510,7 @@ class Viewer {
     s.imgs = ids;
     if (this.shuffle) this.#reshuffle(s, 0);
     this.slots.push(s);
-    this.commit();
+    this.commit([s]);
   }
 
   /** 画像も枠もすべて消す */
@@ -579,7 +591,7 @@ class Viewer {
     this.interval = state.interval ?? 3000;
     this.playing = false;
     this.playOwner = null;
-    this.commit();
+    this.commit(this.slots);
   }
 }
 
