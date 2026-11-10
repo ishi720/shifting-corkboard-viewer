@@ -1,8 +1,3 @@
-<script module>
-  // 並べ替え中の枠ID（dragover 中は dataTransfer を読めないため）
-  let movingId = null;
-</script>
-
 <script>
   import { viewer, NAME_MAX } from '../lib/viewer.svelte.js';
 
@@ -10,8 +5,6 @@
 
   let input;
   let dragging = $state(false);
-  let lifting = $state(false);
-  let over = $state(false);
   let naming = $state(false); // 名前を編集中か
   let draft = $state('');
 
@@ -39,34 +32,6 @@
 
   const hasFiles = (e) => e.dataTransfer.types.includes('Files');
 
-  // ---- 枠の並べ替え ----
-  function onMoveStart(e) {
-    movingId = slot.id;
-    lifting = true;
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', ''); // Firefox はデータが無いとドラッグしない
-  }
-  function onMoveEnd() {
-    movingId = null;
-    lifting = false;
-  }
-  function onMoveOver(e) {
-    if (!movingId || hasFiles(e)) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    over = movingId !== slot.id;
-  }
-  function onMoveLeave(e) {
-    if (!e.currentTarget.contains(e.relatedTarget)) over = false;
-  }
-  function onMoveDrop(e) {
-    if (!movingId || hasFiles(e)) return;
-    e.preventDefault();
-    e.stopPropagation();
-    over = false;
-    viewer.moveSlot(movingId, index);
-  }
-
   // ---- 画像ファイルのドロップ ----
   function onFileOver(e) {
     if (!hasFiles(e)) return;
@@ -89,15 +54,7 @@
 
 <div
   class="slot"
-  class:lifting
-  class:over
   role="listitem"
-  draggable={!naming}
-  ondragstart={onMoveStart}
-  ondragend={onMoveEnd}
-  ondragover={onMoveOver}
-  ondragleave={onMoveLeave}
-  ondrop={onMoveDrop}
 >
   <div class="slot-head">
     {#if naming}
@@ -226,14 +183,19 @@
     }
   }
 
-  /* ---------- 並べ替え ---------- */
+  /* ---------- 並べ替え（SortableJS が付けるクラス） ---------- */
 
-  .slot.lifting {
-    opacity: .4;
+  /* 置き場所の目印。つかんだ枠のあった場所にごく薄く残る */
+  .slot:global(.sort-ghost) {
+    opacity: .15;
   }
-
-  .slot.over .frame {
-    outline: 2px solid var(--accent);
+  /* つかんで動かしている枠。くっきり見せる（Sortable が付ける半透明を打ち消す） */
+  .slot:global(.sort-drag) {
+    opacity: 1 !important;
+    filter: drop-shadow(0 10px 18px rgba(0, 0, 0, .28));
+  }
+  .slot:global(.sort-ghost) .frame {
+    outline: 2px dashed var(--accent);
   }
 
   .n {

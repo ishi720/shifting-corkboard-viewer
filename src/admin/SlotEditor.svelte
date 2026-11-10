@@ -1,12 +1,11 @@
 <script>
   // 枠1つの中身の編集（並べ替え・追加・削除・表示する画像の選択）
   import { viewer } from '../lib/viewer.svelte.js';
+  import { sortable } from '../lib/sortable.js';
 
   let { slotId, onclose } = $props();
 
   let dialog;
-  let from = $state(null); // ドラッグ中の画像番号
-  let to = $state(null);   // ドロップ先の画像番号
   let dropping = $state(false);
 
   const index = $derived(viewer.slots.findIndex((s) => s.id === slotId));
@@ -21,26 +20,6 @@
   });
   // 枠が削除されたら閉じる
   $effect(() => { if (slotId && !slot) onclose(); });
-
-  // ---- 画像の並べ替え ----
-  function onThumbStart(e, i) {
-    from = i;
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', ''); // Firefox はデータが無いとドラッグしない
-  }
-  function onThumbOver(e, i) {
-    if (from === null || hasFiles(e)) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    to = i;
-  }
-  function onThumbDrop(e, i) {
-    if (from === null || hasFiles(e)) return;
-    e.preventDefault();
-    viewer.moveImage(slot, from, i);
-    from = to = null;
-  }
-  function onThumbEnd() { from = to = null; }
 
   // ---- 画像ファイルの追加 ----
   function onFileOver(e) {
@@ -82,19 +61,11 @@
     <p class="hint">ドラッグで並べ替え、クリックでその画像を表示します。画像・動画ファイルをここへドロップすると末尾に追加されます。</p>
 
     {#if slot.imgs.length}
-      <ol class="thumbs">
+      <ol class="thumbs" {@attach sortable({ draggable: '.thumb', onmove: (a, b) => viewer.moveImage(slot, a, b) })}>
         {#each slot.imgs as id, i (id)}
           <li
             class="thumb"
             class:current={i === k}
-            class:lifting={i === from}
-            class:target={i === to && to !== from}
-            draggable="true"
-            ondragstart={(e) => onThumbStart(e, i)}
-            ondragover={(e) => onThumbOver(e, i)}
-            ondragleave={() => { if (to === i) to = null; }}
-            ondrop={(e) => onThumbDrop(e, i)}
-            ondragend={onThumbEnd}
           >
             <button class="pick" onclick={() => viewer.showImage(slot, i)}
               aria-label="{i + 1}枚目を表示" aria-current={i === k}>
@@ -208,12 +179,15 @@
     outline-color: var(--ink);
   }
 
-  .thumb.target {
+  /* 並べ替えの置き場所の目印（SortableJS が付けるクラス） */
+  .thumb:global(.sort-ghost) {
+    opacity: .15;
     outline: 2px dashed var(--accent);
   }
-
-  .thumb.lifting {
-    opacity: .4;
+  /* つかんで動かしている画像。くっきり見せる（Sortable が付ける半透明を打ち消す） */
+  .thumb:global(.sort-drag) {
+    opacity: 1 !important;
+    box-shadow: 0 10px 18px rgba(0, 0, 0, .28);
   }
 
   .pick {

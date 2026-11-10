@@ -3,6 +3,7 @@
   import Slot from './Slot.svelte';
   import SlotEditor from './SlotEditor.svelte';
   import { viewer, MAX_SLOTS, INTERVALS } from '../lib/viewer.svelte.js';
+  import { sortable } from '../lib/sortable.js';
 
   let width = $state(1200);
   let editingId = $state(null); // 中身を編集中の枠ID
@@ -154,7 +155,8 @@
     <span><kbd>←</kbd><kbd>→</kbd> 切り替え　<kbd>Home</kbd> 最初へ　<kbd>Space</kbd> 再生　<kbd>R</kbd> シャッフル再生</span>
   </p>
 
-  <div class="stage" role="list" style:--cols={perRow}>
+  <div class="stage" role="list" style:--cols={perRow}
+    {@attach sortable({ draggable: '.slot', onmove: (a, b) => viewer.moveSlot(viewer.slots[a].id, b) })}>
     {#each viewer.slots as slot, i (slot.id)}
       <Slot {slot} index={i} onedit={() => (editingId = slot.id)} />
     {/each}
