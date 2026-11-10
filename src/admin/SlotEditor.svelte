@@ -76,7 +76,7 @@
               {/if}
             </button>
             <span class="num">{i + 1}</span>
-            <button class="del" onclick={() => { if (confirm(`${i + 1}枚目を削除します。よろしいですか？`)) viewer.removeImage(slot, i); }}
+            <button class="del" onclick={() => viewer.removeImage(slot, i)}
               aria-label="{i + 1}枚目を削除" title="この画像を削除">×</button>
           </li>
         {/each}

@@ -219,11 +219,15 @@ class Viewer {
     s.persisted().then((ok) => ok || s.persist()).catch(() => {});
   }
 
-  /** Blob を保存し、画像IDを返す */
-  async #store(blobs) {
+  /** Blob を保存し、画像IDを返す
+   *  strict: 保存に失敗したら例外を投げる（何も読み込まない）。省くと失敗してもメモリ上だけで使う */
+  async #store(blobs, { strict = false } = {}) {
     this.#persist();
     const entries = blobs.map((b) => [uid(), b]);
-    try { await db.putImages(entries); } catch { this.storageOk = false; }
+    try { await db.putImages(entries); } catch (e) {
+      if (strict) throw e;
+      this.storageOk = false;
+    }
     for (const [id, b] of entries) this.#track(id, b);
     return entries.map(([id]) => id);
   }
@@ -231,12 +235,17 @@ class Viewer {
   /** 画像を表示用URLごと削除 */
   #forget(ids) {
     if (!ids.length) return;
+    this.#release(ids);
+    db.deleteImages(ids).catch(() => {});
+  }
+
+  /** 表示用URLだけ捨てる（DB には残す） */
+  #release(ids) {
     for (const id of ids) {
       const u = this.urls.get(id);
       if (u) URL.revokeObjectURL(u);
       this.#untrack(id);
     }
-    db.deleteImages(ids).catch(() => {});
   }
 
   /** 表示用URLを作る。動画なら長さも調べる */
@@ -573,8 +582,13 @@ class Viewer {
       blobs.push(new Blob([data], { type: info.type ?? '' }));
     }
 
-    for (const s of this.slots) this.#forget(s.imgs);
-    const newIds = await this.#store(blobs);
+    // 新しい画像を先に保存する。失敗したら今の枠と画像には手を付けない
+    //   保存できない環境（プライベートブラウズなど）では、もともと DB に何もないのでメモリ上だけで読み込む
+    let newIds;
+    try { newIds = await this.#store(blobs, { strict: this.storageOk }); }
+    catch { throw new Error('画像を保存できませんでした（空き容量が足りない可能性があります）。今の枠と画像はそのままです'); }
+    const old = this.slots.flatMap((s) => s.imgs);
+    this.#release(old);
 
     const { state } = manifest;
     this.slots = state.slots.slice(0, MAX_SLOTS).map((s) => {
@@ -592,6 +606,11 @@ class Viewer {
     this.playing = false;
     this.playOwner = null;
     this.commit(this.slots);
+
+    // 古い画像は新しい状態の保存が済んでから消す
+    //   状態を保存できなかったときは残す（再読み込みで古い状態に戻り、新しい画像は未使用として掃除される）
+    await this.#saving;
+    if (this.storageOk && old.length) db.deleteImages(old).catch(() => {});
   }
 }
 

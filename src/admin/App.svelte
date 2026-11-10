@@ -34,7 +34,11 @@
     window.open(boardUrl, 'shifting-corkboard');
   }
 
-  function clearAll() { viewer.clearAll(); }
+  function clearAll() {
+    if (!viewer.slots.length) return;
+    if (!confirm('すべての枠と画像・動画を削除します。元に戻せませんが、よろしいですか？')) return;
+    viewer.clearAll();
+  }
 
   // 枠と画像・動画を zip でダウンロード
   async function exportData() {
