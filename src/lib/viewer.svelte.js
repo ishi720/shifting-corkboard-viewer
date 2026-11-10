@@ -467,12 +467,14 @@ class Viewer {
     this.commit();
   }
 
-  /** 枠 s に画像を足す。シャッフル時は表示中の画像を保って並べ直す */
+  /** 枠 s に画像を足し、足した最初の画像を表示する */
   #push(s, ids) {
     if (!ids.length) return;
-    const shown = this.cur(s);
+    const first = s.imgs.length;
     s.imgs.push(...ids);
-    if (this.shuffle) this.#reshuffle(s, shown);
+    s.hold = null;
+    s.left = null;
+    this.#show(s, first);
   }
 
   /** 枠に画像を追加 */
