@@ -118,7 +118,7 @@
     <div class="sep"></div>
     <div class="group">
       <button aria-pressed={viewer.playing} onclick={() => viewer.setPlay(!viewer.playing)}>{viewer.playing ? '再生中' : '再生'}</button>
-      <button aria-pressed={viewer.shuffle} onclick={() => viewer.setShuffle(!viewer.shuffle)}>シャッフル</button>
+      <button aria-pressed={viewer.shuffle} onclick={() => viewer.setShuffle(!viewer.shuffle)}>シャッフル再生</button>
       <label class="sel">間隔
         <select value={viewer.interval} onchange={(e) => viewer.setSpeed(+e.currentTarget.value)}>
           {#each INTERVALS as ms}<option value={ms}>{ms / 1000}秒</option>{/each}
@@ -156,7 +156,7 @@
       {:else if viewer.total}{viewer.total}枚を読み込み済み
       {:else}まだ画像がありません{/if}
     </span>
-    <span><kbd>←</kbd><kbd>→</kbd> 切り替え　<kbd>Home</kbd> 最初へ　<kbd>Space</kbd> 再生　<kbd>R</kbd> シャッフル</span>
+    <span><kbd>←</kbd><kbd>→</kbd> 切り替え　<kbd>Home</kbd> 最初へ　<kbd>Space</kbd> 再生　<kbd>R</kbd> シャッフル再生</span>
   </p>
 
   <div class="stage" role="list" style:--cols={perRow}>
